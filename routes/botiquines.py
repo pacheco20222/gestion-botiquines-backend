@@ -61,8 +61,13 @@ def list_botiquines():
     company_id = request.args.get("company_id")
     
     query = Botiquin.query
-    if company_id:
-        query = query.filter_by(company_id=company_id)
+    if company_id is not None:
+        if company_id == "":
+            # Filter for unassigned botiquines (company_id IS NULL)
+            query = query.filter(Botiquin.company_id.is_(None))
+        else:
+            # Filter for specific company
+            query = query.filter_by(company_id=company_id)
     
     botiquines = query.order_by(Botiquin.id.asc()).all()
     return jsonify([b.to_dict() for b in botiquines]), 200

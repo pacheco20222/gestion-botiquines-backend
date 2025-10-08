@@ -20,13 +20,12 @@ from db import db        # the shared SQLAlchemy instance
 
 from routes.medicines import bp as medicines_bp
 from routes.user_routes import bp as users_bp
-from routes.pages import bp as pages_bp
+# from routes.pages import bp as pages_bp  # Not needed for React SPA
 from routes.botiquines import bp as botiquines_bp
 from routes.hardware import bp as hardware_bp
 from routes.companies import bp as companies_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "..", "gestion-botiquines-frontend", "templates")
 
 login_manager = LoginManager()
 login_manager.login_view = "users.login"
@@ -37,14 +36,20 @@ def create_app():
     """
     Application factory: builds and configures the Flask app.
     """
-    app = Flask(__name__, template_folder=TEMPLATES_DIR)
+    app = Flask(__name__)
 
     # Add CORS headers
     @app.after_request
     def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
+        # Allow specific origin instead of wildcard when using credentials
+        origin = request.headers.get('Origin')
+        if origin and origin in ['http://localhost:5173', 'http://127.0.0.1:5173']:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+        else:
+            response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
 
     # 1) Database setup
@@ -68,7 +73,7 @@ def create_app():
     # 3) Register blueprints
     app.register_blueprint(medicines_bp, url_prefix="/api/medicines")
     app.register_blueprint(users_bp)
-    app.register_blueprint(pages_bp)
+    # app.register_blueprint(pages_bp)  # Not needed for React SPA
     app.register_blueprint(botiquines_bp, url_prefix="/api/botiquines")
     app.register_blueprint(hardware_bp, url_prefix="/api/hardware")
     app.register_blueprint(companies_bp, url_prefix="/api/companies")
@@ -81,6 +86,7 @@ def create_app():
             "status": "ok",
             "time": datetime.utcnow().isoformat()
         })
+
 
     return app
 

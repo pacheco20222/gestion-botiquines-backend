@@ -5,7 +5,6 @@ Tests the complete flow from ESP32 JSON payload to database updates.
 """
 
 import json
-import requests
 from datetime import datetime
 
 def test_esp32_json_reception():
@@ -16,14 +15,17 @@ def test_esp32_json_reception():
     
     # ESP32 JSON payload (exactly what ESP32 would send)
     esp32_payload = {
-        "hardware_id": "BOT001",
+        "hardware_id": "BOT_DEMO_COMP",  # Use existing botiquin from seed data
         "timestamp": datetime.utcnow().isoformat(),
         "sensor_type": "weight",
+        "unit_payload": {
+            "average_weight": 0.5  # Default unit weight for all compartments
+        },
         "compartments": [
-            {"compartment": 1, "weight": 45.5},
-            {"compartment": 2, "weight": 30.2},
-            {"compartment": 3, "weight": 0.0},
-            {"compartment": 4, "weight": 18.2}
+            {"compartment": 1, "weight": 9.9, "unit_weight": 0.5},   # Tylenol: 9.9g current, 0.5g per unit
+            {"compartment": 2, "weight": 2.4, "unit_weight": 0.4},   # Ibuprofen: 2.4g current, 0.4g per unit  
+            {"compartment": 3, "weight": 0.35, "unit_weight": 0.35}, # Aspirin: 0.35g current, 0.35g per unit
+            {"compartment": 4, "weight": 180.0, "unit_weight": 60.0} # Gel: 180g current, 60g per unit
         ]
     }
     

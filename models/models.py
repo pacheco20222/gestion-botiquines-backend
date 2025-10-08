@@ -168,6 +168,7 @@ class Medicine(db.Model):
     
     # Weight management for automatic quantity calculation (peso promedio por unidad)
     unit_weight = db.Column(db.Float, nullable=True)
+    initial_weight = db.Column(db.Float, nullable=True)  # Weight when first scanned/full
     current_weight = db.Column(db.Float, nullable=True)  # Total weight from sensor
     
     # Quantity and stock management
@@ -199,6 +200,10 @@ class Medicine(db.Model):
         Update medicine data from sensor reading.
         Called when hardware sends weight data.
         """
+        # Set initial_weight on first scan if not set
+        if self.initial_weight is None:
+            self.initial_weight = weight_reading
+            
         self.current_weight = weight_reading
         self.calculate_quantity_from_weight()
         self.last_scan_at = datetime.utcnow()
@@ -278,6 +283,7 @@ class Medicine(db.Model):
             "brand": self.brand,
             "strength": self.strength,
         "average_weight": self.unit_weight,
+            "initial_weight": self.initial_weight,
             "current_weight": self.current_weight,
             "quantity": self.quantity,
             "reorder_level": self.reorder_level,
