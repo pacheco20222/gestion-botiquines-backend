@@ -11,6 +11,10 @@ from flask_login import LoginManager
 from datetime import datetime
 import os
 
+# Add CORS support
+from flask import request
+from functools import wraps
+
 from db import init_db   # our init_db function
 from db import db        # the shared SQLAlchemy instance
 
@@ -22,7 +26,7 @@ from routes.hardware import bp as hardware_bp
 from routes.companies import bp as companies_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "..", "frontend", "templates")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "..", "gestion-botiquines-frontend", "templates")
 
 login_manager = LoginManager()
 login_manager.login_view = "users.login"
@@ -34,6 +38,14 @@ def create_app():
     Application factory: builds and configures the Flask app.
     """
     app = Flask(__name__, template_folder=TEMPLATES_DIR)
+
+    # Add CORS headers
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
 
     # 1) Database setup
     init_db(app)
@@ -59,7 +71,7 @@ def create_app():
     app.register_blueprint(pages_bp)
     app.register_blueprint(botiquines_bp, url_prefix="/api/botiquines")
     app.register_blueprint(hardware_bp, url_prefix="/api/hardware")
-    app.register_blueprint(companies_bp, url_prefix="/api/comapnies")
+    app.register_blueprint(companies_bp, url_prefix="/api/companies")
 
 
     # 4) Health check route (simple MVP check)

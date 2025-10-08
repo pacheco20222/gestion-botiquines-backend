@@ -106,7 +106,7 @@ class Botiquin(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     # Unique identifier for hardware communication
-    hardware_id = db.Column(db.String(50), unique=True, nullable=False)
+    hardware_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(80), nullable=False) # e.g., "Botiquín 1", "Planta Baja",
     location = db.Column(db.String(120)) # Physical location description
     
@@ -159,7 +159,7 @@ class Medicine(db.Model):
     botiquin_id = db.Column(db.Integer, db.ForeignKey("botiquines.id"), nullable=False)
     
     # Compartment assignment (1 to total_compartments)
-    compartment_number = db.Column(db.Integer, nullable=True)
+    compartment_number = db.Column(db.Integer, nullable=True, index=True)
     # Medicine information
     trade_name = db.Column(db.String(120), nullable=False)   # Commercial name
     generic_name = db.Column(db.String(120), nullable=False)  # Generic name
@@ -300,7 +300,7 @@ class HardwareLog(db.Model):
     __tablename__ = "hardware_logs"
     
     id = db.Column(db.Integer, primary_key=True)
-    botiquin_id = db.Column(db.Integer, db.ForeignKey('botiquines.id'), nullable=False)
+    botiquin_id = db.Column(db.Integer, db.ForeignKey('botiquines.id'), nullable=False, index=True)
     
     # Raw data from hardware
     compartment_number = db.Column(db.Integer)

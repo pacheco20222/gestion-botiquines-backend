@@ -7,8 +7,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y build-essential
 
-# Copy the SSL certificate (already in backend folder)
-COPY ca-certificate.crt /app/ca-certificate.crt
+# Note: SSL certificate not needed for AWS RDS
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
