@@ -13,9 +13,12 @@ RUN apt-get update && apt-get install -y build-essential
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install production WSGI server
+RUN pip install gunicorn
+
 # Copy the backend application code
 COPY . .
 
 ENV FLASK_APP=app.py 
 EXPOSE 5000
-CMD ["sh", "-c", "flask run --host=0.0.0.0 --port=${PORT:-5000}"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --timeout 120 app:app"]

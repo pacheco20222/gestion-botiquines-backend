@@ -101,6 +101,22 @@ def create_app():
             "time": datetime.utcnow().isoformat()
         })
 
+    # 5) Root route to handle 404 errors
+    @app.route("/")
+    def root():
+        return jsonify({
+            "message": "VitalStock Backend API",
+            "status": "running",
+            "version": "1.0.0",
+            "endpoints": {
+                "health": "/health",
+                "medicines": "/api/medicines",
+                "botiquines": "/api/botiquines",
+                "hardware": "/api/hardware",
+                "companies": "/api/companies",
+                "users": "/api/users"
+            }
+        })
 
     return app
 
