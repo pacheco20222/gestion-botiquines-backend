@@ -8,6 +8,7 @@ Flask application factory for the MVP.
 
 from flask import Flask, jsonify, request, make_response
 from flask_login import LoginManager
+from flask_cors import CORS
 from datetime import datetime
 import os
 
@@ -37,48 +38,14 @@ def create_app():
     """
     app = Flask(__name__)
 
-    # Add CORS headers
-    @app.after_request
-    def after_request(response):
-        # Allow specific origins from environment variable
-        allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
-        origin = request.headers.get('Origin')
-        
-        if origin and origin in allowed_origins:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-        else:
-            # In production, be more restrictive
-            if os.getenv('FLASK_ENV') == 'production':
-                response.headers.add('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
-            else:
-                response.headers.add('Access-Control-Allow-Origin', '*')
-        
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
-
-    # Handle CORS preflight requests
-    @app.before_request
-    def handle_preflight():
-        if request.method == "OPTIONS":
-            response = make_response()
-            # Use the same origin logic as after_request
-            allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
-            origin = request.headers.get('Origin')
-            
-            if origin and origin in allowed_origins:
-                response.headers.add("Access-Control-Allow-Origin", origin)
-            else:
-                if os.getenv('FLASK_ENV') == 'production':
-                    response.headers.add("Access-Control-Allow-Origin", allowed_origins[0] if allowed_origins else '*')
-                else:
-                    response.headers.add("Access-Control-Allow-Origin", "*")
-            
-            response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization")
-            response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS")
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-            return response
+    # Configure CORS properly
+    allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+    
+    CORS(app, 
+         origins=allowed_origins,
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'])
 
     # 1) Database setup
     init_db(app)
