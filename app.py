@@ -63,7 +63,18 @@ def create_app():
     def handle_preflight():
         if request.method == "OPTIONS":
             response = make_response()
-            response.headers.add("Access-Control-Allow-Origin", "*")
+            # Use the same origin logic as after_request
+            allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+            origin = request.headers.get('Origin')
+            
+            if origin and origin in allowed_origins:
+                response.headers.add("Access-Control-Allow-Origin", origin)
+            else:
+                if os.getenv('FLASK_ENV') == 'production':
+                    response.headers.add("Access-Control-Allow-Origin", allowed_origins[0] if allowed_origins else '*')
+                else:
+                    response.headers.add("Access-Control-Allow-Origin", "*")
+            
             response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization")
             response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS")
             response.headers.add('Access-Control-Allow-Credentials', 'true')
