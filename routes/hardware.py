@@ -20,6 +20,8 @@ from models.models import Botiquin, Medicine, HardwareLog
 #         {
 #             "compartment": 1,
 #             "weight": 45.5,
+#             "unit": "grams",
+#             "medicine_name": "tylenol",  # optional - can be assigned by admin if not provided
 #             "average_weight": 0.5  # optional override per compartment
 #         },
 #         ...
@@ -97,6 +99,7 @@ def receive_sensor_data():
         for comp in data["compartments"]:
             compartment_number = comp.get("compartment")
             weight = comp.get("weight")
+            medicine_name = comp.get("medicine_name")  # New field from hardware
             avg_weight_override = comp.get("average_weight", comp.get("unit_weight"))
             
             # Create individual log entries per compartment
@@ -140,30 +143,14 @@ def receive_sensor_data():
                 })
                 continue
             
-            # Determine unit weight to use for this update
-            avg_weight_to_apply = None
-            if avg_weight_override is not None:
-                try:
-                    avg_weight_to_apply = float(avg_weight_override)
-                except (TypeError, ValueError):
-                    avg_weight_to_apply = None
-                    errors.append({
-                        "compartment": compartment_number,
-                        "warning": f"Invalid average_weight override provided ({avg_weight_override})"
-                    })
-
-            if avg_weight_to_apply is None and payload_avg_weight is not None:
-                avg_weight_to_apply = payload_avg_weight
-
-            # Update medicine weight and unit weight if provided
-            if avg_weight_to_apply is not None and avg_weight_to_apply > 0:
-                medicine.unit_weight = avg_weight_to_apply
+            # Note: unit_weight is not updated from hardware data
+            # It will be set by admin when assigning medicine names
 
             old_quantity = medicine.quantity
             old_weight = medicine.current_weight
 
             # Update from sensor (uses internal logic to update quantity based on current unit_weight)
-            new_quantity = medicine.update_from_sensor(weight)
+            new_quantity = medicine.update_from_sensor(weight, medicine_name)
             
             # Mark compartment log as processed
             comp_log.processed = True
@@ -171,14 +158,13 @@ def receive_sensor_data():
             
             results.append({
                 "compartment": compartment_number,
-                "medicine": medicine.trade_name,
+                "medicine": medicine.medicine_name or "No asignado",
                 "old_weight": old_weight,
                 "new_weight": medicine.current_weight,
                 "old_quantity": old_quantity,
                 "new_quantity": new_quantity,
                 "quantity_change": new_quantity - old_quantity,
-                "status": medicine.status(),
-                "average_weight": medicine.unit_weight
+                "status": medicine.status()
             })
         
         # Update botiquin sync timestamp

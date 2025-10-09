@@ -41,12 +41,19 @@ def create_app():
     # Add CORS headers
     @app.after_request
     def after_request(response):
-        # Allow specific origin instead of wildcard when using credentials
+        # Allow specific origins from environment variable
+        allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
         origin = request.headers.get('Origin')
-        if origin and origin in ['http://localhost:5173', 'http://127.0.0.1:5173']:
+        
+        if origin and origin in allowed_origins:
             response.headers.add('Access-Control-Allow-Origin', origin)
         else:
-            response.headers.add('Access-Control-Allow-Origin', '*')
+            # In production, be more restrictive
+            if os.getenv('FLASK_ENV') == 'production':
+                response.headers.add('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
+            else:
+                response.headers.add('Access-Control-Allow-Origin', '*')
+        
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -55,6 +62,13 @@ def create_app():
     # 1) Database setup
     init_db(app)
     app.secret_key = os.getenv("SECRET_KEY", "fallback-secret")
+    
+    # Production configuration
+    if os.getenv('FLASK_ENV') == 'production':
+        app.config['DEBUG'] = False
+        app.config['TESTING'] = False
+    else:
+        app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
     # 2) Authentication setup
     login_manager.init_app(app)

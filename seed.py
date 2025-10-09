@@ -16,16 +16,36 @@ def init_db():
             email="admin@example.com",
             user_type="super_admin"
         )
-        superadmin.set_password("admin123")  # In production, hash this!
+        superadmin.set_password("admin123")
         db.session.add(superadmin)
 
-        # Seed a company
+        # Seed companies
         demo_company = Company(
             name="Demo Company"
         )
         db.session.add(demo_company)
 
-        # Seed a company admin user for demo_company
+        health_corp = Company(
+            name="Health Corp"
+        )
+        db.session.add(health_corp)
+
+        techcorp = Company(
+            name="TechCorp Solutions"
+        )
+        db.session.add(techcorp)
+
+        manufacturing = Company(
+            name="Manufacturing Inc"
+        )
+        db.session.add(manufacturing)
+
+        healthcare_plus = Company(
+            name="Healthcare Plus"
+        )
+        db.session.add(healthcare_plus)
+
+        # Seed company admin users
         demo_admin = User(
             username="demo_admin",
             email="demo_admin@example.com",
@@ -35,13 +55,6 @@ def init_db():
         demo_admin.set_password("password123")
         db.session.add(demo_admin)
 
-        # Seed a second company
-        health_corp = Company(
-            name="Health Corp"
-        )
-        db.session.add(health_corp)
-
-        # Seed a company admin user for Health Corp
         health_admin = User(
             username="health_admin",
             email="health_admin@example.com",
@@ -51,12 +64,36 @@ def init_db():
         health_admin.set_password("healthpass456")
         db.session.add(health_admin)
 
-        # Additional users will be created after their companies are created
-        # (We'll add them later in the seed process)
+        tech_admin = User(
+            username="tech_admin",
+            email="tech_admin@example.com",
+            user_type="company_admin",
+            company=techcorp
+        )
+        tech_admin.set_password("techpass123")
+        db.session.add(tech_admin)
 
-        # Seed botiquines:
-        # 1. Assigned to demo_company
-        botiquin_demo_company = Botiquin(
+        mfg_admin = User(
+            username="mfg_admin",
+            email="mfg_admin@example.com",
+            user_type="company_admin",
+            company=manufacturing
+        )
+        mfg_admin.set_password("mfgpass123")
+        db.session.add(mfg_admin)
+
+        healthcare_admin = User(
+            username="healthcare_admin",
+            email="healthcare_admin@example.com",
+            user_type="company_admin",
+            company=healthcare_plus
+        )
+        healthcare_admin.set_password("healthcarepass123")
+        db.session.add(healthcare_admin)
+
+        # Seed botiquines
+        # 1. Demo Company botiquin
+        botiquin_demo = Botiquin(
             hardware_id="BOT_DEMO_COMP",
             name="Botiquín Demo Company",
             location="Demo HQ",
@@ -64,776 +101,494 @@ def init_db():
             last_sync_at=datetime.utcnow(),
             company=demo_company
         )
-        db.session.add(botiquin_demo_company)
+        db.session.add(botiquin_demo)
         db.session.flush()
 
-        medicines_demo_company = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Genéricos MX",
-                strength="500 mg",
-                unit_weight=0.55,
-                initial_weight=13.2,  # Full bottle: 24 units × 0.55g
-                current_weight=9.9,
-                quantity=18,
-                reorder_level=8,
-                max_capacity=24,
-                expiry_date=date.today() + timedelta(days=180),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_demo_company.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.40,
-                initial_weight=7.2,  # Full bottle: 18 units × 0.40g
-                current_weight=2.4,
-                quantity=6,
-                reorder_level=5,
-                max_capacity=18,
-                expiry_date=date.today() + timedelta(days=60),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_demo_company.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=6.3,  # Full bottle: 18 units × 0.35g
-                current_weight=0.35,
-                quantity=1,
-                reorder_level=6,
-                max_capacity=18,
-                expiry_date=date.today() - timedelta(days=5),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_demo_company.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=360.0,  # Full bottle: 6 units × 60g
-                current_weight=180.0,
-                quantity=3,
-                reorder_level=2,
-                max_capacity=6,
-                expiry_date=date.today() + timedelta(days=365),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_demo_company.id
-            ),
-        ]
-        db.session.add_all(medicines_demo_company)
-
-        # 2. Assigned to Health Corp
-        botiquin_health_corp = Botiquin(
+        # 2. Health Corp botiquin
+        botiquin_health = Botiquin(
             hardware_id="BOT_HEALTH_CORP",
             name="Botiquín Health Corp",
-            location="Health Corp Clinic",
+            location="Health Corp Main Office",
             total_compartments=4,
             last_sync_at=datetime.utcnow(),
             company=health_corp
         )
-        db.session.add(botiquin_health_corp)
+        db.session.add(botiquin_health)
         db.session.flush()
 
-        medicines_health_corp = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Loratadina",
-                generic_name="Loratadine",
-                brand="Claritin",
-                strength="10 mg",
-                unit_weight=0.012,
-                initial_weight=0.192,  # Full bottle: 16 units × 0.012g
-                current_weight=0.144,
-                quantity=12,
-                reorder_level=4,
-                max_capacity=16,
-                expiry_date=date.today() + timedelta(days=210),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_health_corp.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Diclofenaco",
-                generic_name="Diclofenac",
-                brand="Voltaren",
-                strength="50 mg",
-                unit_weight=0.05,
-                initial_weight=0.5,  # Full bottle: 10 units × 0.05g
-                current_weight=0.2,
-                quantity=4,
-                reorder_level=3,
-                max_capacity=10,
-                expiry_date=date.today() + timedelta(days=20),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_health_corp.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Omeprazol",
-                generic_name="Omeprazole",
-                brand="Prilosec",
-                strength="20 mg",
-                unit_weight=0.02,
-                initial_weight=0.24,  # Full bottle: 12 units × 0.02g
-                current_weight=0.06,
-                quantity=3,
-                reorder_level=4,
-                max_capacity=12,
-                expiry_date=date.today() + timedelta(days=6),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_health_corp.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Solución Salina",
-                generic_name="Sodium Chloride",
-                brand="Salimed",
-                strength="100 ml",
-                unit_weight=100.0,
-                initial_weight=600.0,  # Full bottle: 6 units × 100g
-                current_weight=300.0,
-                quantity=3,
-                reorder_level=2,
-                max_capacity=6,
-                expiry_date=date.today() + timedelta(days=120),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_health_corp.id
-            ),
-        ]
-        db.session.add_all(medicines_health_corp)
-
-        # 3. Unassigned botiquin (company_id=None) - still stocked with medicines
-        botiquin_unassigned = Botiquin(
-            hardware_id="BOT_UNASSIGNED",
-            name="Botiquín Unassigned",
-            location="Warehouse",
+        # 3. TechCorp botiquin
+        botiquin_tech = Botiquin(
+            hardware_id="BOT_TECHCORP",
+            name="Botiquín TechCorp",
+            location="TechCorp Office",
             total_compartments=4,
             last_sync_at=datetime.utcnow(),
-            company_id=None
+            company=techcorp
         )
-        db.session.add(botiquin_unassigned)
+        db.session.add(botiquin_tech)
         db.session.flush()
 
-        medicines_unassigned = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Clorhexidina",
-                generic_name="Chlorhexidine",
-                brand="DermaClean",
-                strength="120 ml",
-                unit_weight=120.0,
-                initial_weight=480.0,  # Full bottle: 4 units × 120g
-                current_weight=240.0,
-                quantity=2,
-                reorder_level=1,
-                max_capacity=4,
-                expiry_date=date.today() + timedelta(days=300),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Gasas Esterilizadas",
-                generic_name="Sterile Gauze",
-                brand="MediPack",
-                strength="10 unidades",
-                unit_weight=0.009,
-                initial_weight=0.108,  # Full pack: 12 units × 0.009g
-                current_weight=0.045,
-                quantity=5,
-                reorder_level=4,
-                max_capacity=12,
-                expiry_date=date.today() + timedelta(days=150),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Guantes Nitrilo",
-                generic_name="Nitrile Gloves",
-                brand="SafeHands",
-                strength="Par",
-                unit_weight=0.025,
-                initial_weight=0.3,  # Full pack: 12 units × 0.025g
-                current_weight=0.075,
-                quantity=3,
-                reorder_level=6,
-                max_capacity=12,
-                expiry_date=None,
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Vendaje Elástico",
-                generic_name="Elastic Bandage",
-                brand="FlexWrap",
-                strength="5 cm x 4 m",
-                unit_weight=0.08,
-                initial_weight=0.4,  # Full pack: 5 units × 0.08g
-                current_weight=0.16,
-                quantity=2,
-                reorder_level=2,
-                max_capacity=5,
-                expiry_date=date.today() + timedelta(days=540),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned.id
-            ),
-        ]
-        db.session.add_all(medicines_unassigned)
-
-        # 4. TechCorp - Tech company with 2 botiquines
-        techcorp_company = Company(
-            name="TechCorp Solutions",
-            contact_email="admin@techcorp.com",
-            contact_phone="+1-555-0101",
-            active=True
-        )
-        db.session.add(techcorp_company)
-        db.session.flush()
-
-        # TechCorp Botiquin 1 - Office Floor
-        botiquin_techcorp_office = Botiquin(
-            hardware_id="BOT_TECHCORP_01",
-            name="Botiquín Oficina Principal",
-            location="Piso 3 - Oficina Principal",
+        # 4. Manufacturing botiquin
+        botiquin_mfg = Botiquin(
+            hardware_id="BOT_MANUFACTURING",
+            name="Botiquín Manufacturing",
+            location="Manufacturing Plant",
             total_compartments=4,
             last_sync_at=datetime.utcnow(),
-            company=techcorp_company
+            company=manufacturing
         )
-        db.session.add(botiquin_techcorp_office)
+        db.session.add(botiquin_mfg)
         db.session.flush()
 
-        medicines_techcorp_office = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Tylenol",
-                strength="500 mg",
-                unit_weight=0.5,
-                initial_weight=10.0,  # 20 units × 0.5g
-                current_weight=7.5,   # 75% stock
-                quantity=15,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=120),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_office.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.4,
-                initial_weight=8.0,   # 20 units × 0.4g
-                current_weight=2.4,   # 30% stock
-                quantity=6,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=45),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_office.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=7.0,   # 20 units × 0.35g
-                current_weight=0.7,   # 10% stock
-                quantity=2,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=15),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_office.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=360.0, # 6 units × 60g
-                current_weight=240.0, # 67% stock
-                quantity=4,
-                reorder_level=2,
-                max_capacity=6,
-                expiry_date=date.today() + timedelta(days=200),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_office.id
-            ),
-        ]
-        db.session.add_all(medicines_techcorp_office)
-
-        # TechCorp Botiquin 2 - Break Room
-        botiquin_techcorp_break = Botiquin(
-            hardware_id="BOT_TECHCORP_02",
-            name="Botiquín Sala de Descanso",
-            location="Piso 2 - Sala de Descanso",
-            total_compartments=4,
-            last_sync_at=datetime.utcnow(),
-            company=techcorp_company
-        )
-        db.session.add(botiquin_techcorp_break)
-        db.session.flush()
-
-        medicines_techcorp_break = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Genéricos MX",
-                strength="500 mg",
-                unit_weight=0.5,
-                initial_weight=10.0,  # 20 units × 0.5g
-                current_weight=8.0,   # 80% stock
-                quantity=16,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=90),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_break.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.4,
-                initial_weight=8.0,   # 20 units × 0.4g
-                current_weight=6.4,   # 80% stock
-                quantity=16,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=60),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_break.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=7.0,   # 20 units × 0.35g
-                current_weight=4.9,   # 70% stock
-                quantity=14,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=30),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_break.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=360.0, # 6 units × 60g
-                current_weight=300.0, # 83% stock
-                quantity=5,
-                reorder_level=2,
-                max_capacity=6,
-                expiry_date=date.today() + timedelta(days=180),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_techcorp_break.id
-            ),
-        ]
-        db.session.add_all(medicines_techcorp_break)
-
-        # Add TechCorp admin user
-        tech_admin = User(
-            username="tech_admin",
-            email="admin@techcorp.com",
-            user_type="company_admin",
-            company=techcorp_company
-        )
-        tech_admin.set_password("techpass123")
-        db.session.add(tech_admin)
-
-        # 5. Manufacturing Inc - Manufacturing company
-        manufacturing_company = Company(
-            name="Manufacturing Inc",
-            contact_email="safety@manufacturing.com",
-            contact_phone="+1-555-0202",
-            active=True
-        )
-        db.session.add(manufacturing_company)
-        db.session.flush()
-
-        botiquin_manufacturing = Botiquin(
-            hardware_id="BOT_MFG_01",
-            name="Botiquín Planta de Producción",
-            location="Planta Principal - Área de Seguridad",
-            total_compartments=4,
-            last_sync_at=datetime.utcnow(),
-            company=manufacturing_company
-        )
-        db.session.add(botiquin_manufacturing)
-        db.session.flush()
-
-        medicines_manufacturing = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Genéricos MX",
-                strength="500 mg",
-                unit_weight=0.5,
-                initial_weight=15.0,  # 30 units × 0.5g
-                current_weight=5.0,   # 33% stock
-                quantity=10,
-                reorder_level=8,
-                max_capacity=30,
-                expiry_date=date.today() + timedelta(days=150),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_manufacturing.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.4,
-                initial_weight=12.0,  # 30 units × 0.4g
-                current_weight=1.6,   # 13% stock
-                quantity=4,
-                reorder_level=8,
-                max_capacity=30,
-                expiry_date=date.today() + timedelta(days=30),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_manufacturing.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=10.5,  # 30 units × 0.35g
-                current_weight=0.35,  # 3% stock
-                quantity=1,
-                reorder_level=8,
-                max_capacity=30,
-                expiry_date=date.today() + timedelta(days=10),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_manufacturing.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=480.0, # 8 units × 60g
-                current_weight=120.0, # 25% stock
-                quantity=2,
-                reorder_level=3,
-                max_capacity=8,
-                expiry_date=date.today() + timedelta(days=250),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_manufacturing.id
-            ),
-        ]
-        db.session.add_all(medicines_manufacturing)
-
-        # Add Manufacturing admin user
-        mfg_admin = User(
-            username="mfg_admin",
-            email="safety@manufacturing.com",
-            user_type="company_admin",
-            company=manufacturing_company
-        )
-        mfg_admin.set_password("mfgpass123")
-        db.session.add(mfg_admin)
-
-        # 6. Healthcare Plus - Healthcare company
-        healthcare_company = Company(
-            name="Healthcare Plus",
-            contact_email="admin@healthcareplus.com",
-            contact_phone="+1-555-0303",
-            active=True
-        )
-        db.session.add(healthcare_company)
-        db.session.flush()
-
+        # 5. Healthcare Plus botiquin
         botiquin_healthcare = Botiquin(
-            hardware_id="BOT_HEALTH_01",
-            name="Botiquín Clínica Principal",
-            location="Clínica - Recepción",
+            hardware_id="BOT_HEALTHCARE_PLUS",
+            name="Botiquín Healthcare Plus",
+            location="Healthcare Plus Clinic",
             total_compartments=4,
             last_sync_at=datetime.utcnow(),
-            company=healthcare_company
+            company=healthcare_plus
         )
         db.session.add(botiquin_healthcare)
         db.session.flush()
 
-        medicines_healthcare = [
+        # 6. Unassigned botiquines (with realistic weight data from hardware)
+        botiquin_unassigned1 = Botiquin(
+            hardware_id="BOT_UNASSIGNED_1",
+            name="Botiquín Unassigned 1",
+            location="Warehouse",
+            total_compartments=4,
+            last_sync_at=datetime.utcnow(),
+            company=None
+        )
+        db.session.add(botiquin_unassigned1)
+        db.session.flush()
+
+        botiquin_unassigned2 = Botiquin(
+            hardware_id="BOT_UNASSIGNED_2",
+            name="Botiquín Unassigned 2",
+            location="Storage Room",
+            total_compartments=4,
+            last_sync_at=datetime.utcnow(),
+            company=None
+        )
+        db.session.add(botiquin_unassigned2)
+        db.session.flush()
+
+        botiquin_unassigned3 = Botiquin(
+            hardware_id="BOT_UNASSIGNED_3",
+            name="Botiquín Unassigned 3",
+            location="Distribution Center",
+            total_compartments=4,
+            last_sync_at=datetime.utcnow(),
+            company=None
+        )
+        db.session.add(botiquin_unassigned3)
+        db.session.flush()
+
+        # Seed medicines for Demo Company botiquin
+        medicines_demo = [
             Medicine(
                 compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Tylenol",
-                strength="500 mg",
-                unit_weight=0.5,
-                initial_weight=20.0,  # 40 units × 0.5g
-                current_weight=18.0,  # 90% stock
-                quantity=36,
-                reorder_level=10,
-                max_capacity=40,
-                expiry_date=date.today() + timedelta(days=200),
+                medicine_name="tylenol",
+                initial_weight=13.2,
+                current_weight=9.9,
+                reorder_level=8,
+                max_capacity=24,
+                expiry_date=date.today() + timedelta(days=180),
                 last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_healthcare.id
+                botiquin_id=botiquin_demo.id
             ),
             Medicine(
                 compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.4,
-                initial_weight=16.0,  # 40 units × 0.4g
-                current_weight=14.4,  # 90% stock
-                quantity=36,
-                reorder_level=10,
-                max_capacity=40,
-                expiry_date=date.today() + timedelta(days=180),
+                medicine_name="ibuprofen",
+                initial_weight=7.2,
+                current_weight=2.4,
+                reorder_level=5,
+                max_capacity=18,
+                expiry_date=date.today() + timedelta(days=60),
                 last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_healthcare.id
+                botiquin_id=botiquin_demo.id
             ),
             Medicine(
                 compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=14.0,  # 40 units × 0.35g
-                current_weight=12.6,  # 90% stock
-                quantity=36,
+                medicine_name="aspirin",
+                initial_weight=6.3,
+                current_weight=0.35,
+                reorder_level=6,
+                max_capacity=18,
+                expiry_date=date.today() - timedelta(days=5),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_demo.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name="gel",
+                initial_weight=360.0,
+                current_weight=180.0,
+                reorder_level=2,
+                max_capacity=6,
+                expiry_date=date.today() + timedelta(days=365),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_demo.id
+            )
+        ]
+
+        # Seed medicines for Health Corp botiquin
+        medicines_health = [
+            Medicine(
+                compartment_number=1,
+                medicine_name="paracetamol",
+                initial_weight=12.0,
+                current_weight=8.0,
                 reorder_level=10,
-                max_capacity=40,
+                max_capacity=24,
+                expiry_date=date.today() + timedelta(days=120),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_health.id
+            ),
+            Medicine(
+                compartment_number=2,
+                medicine_name="diclofenac",
+                initial_weight=9.0,
+                current_weight=6.75,
+                reorder_level=8,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=200),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_health.id
+            ),
+            Medicine(
+                compartment_number=3,
+                medicine_name="omeprazole",
+                initial_weight=6.0,
+                current_weight=0.6,
+                reorder_level=10,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=90),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_health.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name="bandages",
+                initial_weight=100.0,
+                current_weight=75.0,
+                reorder_level=5,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=730),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_health.id
+            )
+        ]
+
+        # Seed medicines for TechCorp botiquin
+        medicines_tech = [
+            Medicine(
+                compartment_number=1,
+                medicine_name="acetaminophen",
+                initial_weight=10.4,
+                current_weight=7.8,
+                reorder_level=8,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=150),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_tech.id
+            ),
+            Medicine(
+                compartment_number=2,
+                medicine_name="naproxen",
+                initial_weight=7.6,
+                current_weight=3.8,
+                reorder_level=6,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=100),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_tech.id
+            ),
+            Medicine(
+                compartment_number=3,
+                medicine_name="loratadine",
+                initial_weight=5.0,
+                current_weight=2.5,
+                reorder_level=8,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=25),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_tech.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name="antiseptic",
+                initial_weight=250.0,
+                current_weight=125.0,
+                reorder_level=3,
+                max_capacity=10,
+                expiry_date=date.today() + timedelta(days=400),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_tech.id
+            )
+        ]
+
+        # Seed medicines for unassigned botiquines (with realistic weight data)
+        medicines_unassigned1 = [
+            Medicine(
+                compartment_number=1,
+                medicine_name=None,  # No medicine name assigned yet
+                initial_weight=15.0,
+                current_weight=12.5,
+                reorder_level=8,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=200),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned1.id
+            ),
+            Medicine(
+                compartment_number=2,
+                medicine_name=None,
+                initial_weight=8.5,
+                current_weight=6.2,
+                reorder_level=5,
+                max_capacity=15,
+                expiry_date=date.today() + timedelta(days=150),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned1.id
+            ),
+            Medicine(
+                compartment_number=3,
+                medicine_name=None,
+                initial_weight=12.0,
+                current_weight=3.8,
+                reorder_level=6,
+                max_capacity=18,
+                expiry_date=date.today() + timedelta(days=100),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned1.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name=None,
+                initial_weight=200.0,
+                current_weight=150.0,
+                reorder_level=3,
+                max_capacity=8,
+                expiry_date=date.today() + timedelta(days=300),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned1.id
+            )
+        ]
+
+        medicines_unassigned2 = [
+            Medicine(
+                compartment_number=1,
+                medicine_name=None,
+                initial_weight=18.0,
+                current_weight=14.5,
+                reorder_level=10,
+                max_capacity=25,
+                expiry_date=date.today() + timedelta(days=180),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned2.id
+            ),
+            Medicine(
+                compartment_number=2,
+                medicine_name=None,
+                initial_weight=10.5,
+                current_weight=7.8,
+                reorder_level=6,
+                max_capacity=18,
+                expiry_date=date.today() + timedelta(days=120),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned2.id
+            ),
+            Medicine(
+                compartment_number=3,
+                medicine_name=None,
+                initial_weight=14.0,
+                current_weight=2.1,
+                reorder_level=8,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=90),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned2.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name=None,
+                initial_weight=180.0,
+                current_weight=120.0,
+                reorder_level=4,
+                max_capacity=10,
+                expiry_date=date.today() + timedelta(days=250),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned2.id
+            )
+        ]
+
+        medicines_unassigned3 = [
+            Medicine(
+                compartment_number=1,
+                medicine_name=None,
+                initial_weight=16.5,
+                current_weight=11.2,
+                reorder_level=9,
+                max_capacity=22,
+                expiry_date=date.today() + timedelta(days=160),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned3.id
+            ),
+            Medicine(
+                compartment_number=2,
+                medicine_name=None,
+                initial_weight=9.0,
+                current_weight=5.5,
+                reorder_level=7,
+                max_capacity=16,
+                expiry_date=date.today() + timedelta(days=140),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned3.id
+            ),
+            Medicine(
+                compartment_number=3,
+                medicine_name=None,
+                initial_weight=13.5,
+                current_weight=1.8,
+                reorder_level=9,
+                max_capacity=19,
+                expiry_date=date.today() + timedelta(days=80),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned3.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name=None,
+                initial_weight=220.0,
+                current_weight=165.0,
+                reorder_level=5,
+                max_capacity=12,
+                expiry_date=date.today() + timedelta(days=280),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_unassigned3.id
+            )
+        ]
+
+        # Seed medicines for Manufacturing botiquin
+        medicines_mfg = [
+            Medicine(
+                compartment_number=1,
+                medicine_name=None,  # No medicine name assigned yet
+                initial_weight=16.0,
+                current_weight=12.8,
+                reorder_level=8,
+                max_capacity=20,
+                expiry_date=date.today() + timedelta(days=180),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_mfg.id
+            ),
+            Medicine(
+                compartment_number=2,
+                medicine_name=None,
+                initial_weight=9.5,
+                current_weight=7.1,
+                reorder_level=5,
+                max_capacity=15,
+                expiry_date=date.today() + timedelta(days=120),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_mfg.id
+            ),
+            Medicine(
+                compartment_number=3,
+                medicine_name=None,
+                initial_weight=11.0,
+                current_weight=2.2,
+                reorder_level=6,
+                max_capacity=18,
+                expiry_date=date.today() + timedelta(days=90),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_mfg.id
+            ),
+            Medicine(
+                compartment_number=4,
+                medicine_name=None,
+                initial_weight=190.0,
+                current_weight=142.5,
+                reorder_level=3,
+                max_capacity=8,
+                expiry_date=date.today() + timedelta(days=280),
+                last_scan_at=datetime.utcnow(),
+                botiquin_id=botiquin_mfg.id
+            )
+        ]
+
+        # Seed medicines for Healthcare Plus botiquin
+        medicines_healthcare = [
+            Medicine(
+                compartment_number=1,
+                medicine_name=None,  # No medicine name assigned yet
+                initial_weight=14.5,
+                current_weight=11.6,
+                reorder_level=9,
+                max_capacity=22,
                 expiry_date=date.today() + timedelta(days=160),
                 last_scan_at=datetime.utcnow(),
                 botiquin_id=botiquin_healthcare.id
             ),
             Medicine(
-                compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=600.0, # 10 units × 60g
-                current_weight=540.0, # 90% stock
-                quantity=9,
-                reorder_level=3,
-                max_capacity=10,
-                expiry_date=date.today() + timedelta(days=300),
+                compartment_number=2,
+                medicine_name=None,
+                initial_weight=8.8,
+                current_weight=6.6,
+                reorder_level=7,
+                max_capacity=16,
+                expiry_date=date.today() + timedelta(days=140),
                 last_scan_at=datetime.utcnow(),
                 botiquin_id=botiquin_healthcare.id
             ),
-        ]
-        db.session.add_all(medicines_healthcare)
-
-        # Add Healthcare Plus admin user
-        healthcare_admin = User(
-            username="healthcare_admin",
-            email="admin@healthcareplus.com",
-            user_type="company_admin",
-            company=healthcare_company
-        )
-        healthcare_admin.set_password("healthcarepass123")
-        db.session.add(healthcare_admin)
-
-        # 7. Additional unassigned botiquines for testing assignment
-        botiquin_unassigned_2 = Botiquin(
-            hardware_id="BOT_UNASSIGNED_02",
-            name="Botiquín Sin Asignar #2",
-            location="Almacén Central",
-            total_compartments=4,
-            last_sync_at=datetime.utcnow(),
-            company_id=None
-        )
-        db.session.add(botiquin_unassigned_2)
-        db.session.flush()
-
-        medicines_unassigned_2 = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Genéricos MX",
-                strength="500 mg",
-                unit_weight=0.5,
-                initial_weight=10.0,  # 20 units × 0.5g
-                current_weight=10.0,  # 100% stock (new)
-                quantity=20,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=365),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_2.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.4,
-                initial_weight=8.0,   # 20 units × 0.4g
-                current_weight=8.0,   # 100% stock (new)
-                quantity=20,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=365),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_2.id
-            ),
             Medicine(
                 compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=7.0,   # 20 units × 0.35g
-                current_weight=7.0,   # 100% stock (new)
-                quantity=20,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=365),
+                medicine_name=None,
+                initial_weight=12.5,
+                current_weight=1.9,
+                reorder_level=9,
+                max_capacity=19,
+                expiry_date=date.today() + timedelta(days=80),
                 last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_2.id
+                botiquin_id=botiquin_healthcare.id
             ),
             Medicine(
                 compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=360.0, # 6 units × 60g
-                current_weight=360.0, # 100% stock (new)
-                quantity=6,
-                reorder_level=2,
-                max_capacity=6,
-                expiry_date=date.today() + timedelta(days=365),
+                medicine_name=None,
+                initial_weight=210.0,
+                current_weight=157.5,
+                reorder_level=5,
+                max_capacity=12,
+                expiry_date=date.today() + timedelta(days=270),
                 last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_2.id
-            ),
+                botiquin_id=botiquin_healthcare.id
+            )
         ]
-        db.session.add_all(medicines_unassigned_2)
 
-        botiquin_unassigned_3 = Botiquin(
-            hardware_id="BOT_UNASSIGNED_03",
-            name="Botiquín Sin Asignar #3",
-            location="Almacén Secundario",
-            total_compartments=4,
-            last_sync_at=datetime.utcnow(),
-            company_id=None
-        )
-        db.session.add(botiquin_unassigned_3)
-        db.session.flush()
+        # Add all medicines to session
+        for medicine in medicines_demo + medicines_health + medicines_tech + medicines_mfg + medicines_healthcare + medicines_unassigned1 + medicines_unassigned2 + medicines_unassigned3:
+            db.session.add(medicine)
 
-        medicines_unassigned_3 = [
-            Medicine(
-                compartment_number=1,
-                trade_name="Paracetamol",
-                generic_name="Acetaminophen",
-                brand="Tylenol",
-                strength="500 mg",
-                unit_weight=0.5,
-                initial_weight=10.0,  # 20 units × 0.5g
-                current_weight=5.0,   # 50% stock
-                quantity=10,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=200),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_3.id
-            ),
-            Medicine(
-                compartment_number=2,
-                trade_name="Ibuprofeno",
-                generic_name="Ibuprofen",
-                brand="Advil",
-                strength="400 mg",
-                unit_weight=0.4,
-                initial_weight=8.0,   # 20 units × 0.4g
-                current_weight=2.4,   # 30% stock
-                quantity=6,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=150),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_3.id
-            ),
-            Medicine(
-                compartment_number=3,
-                trade_name="Aspirina",
-                generic_name="Acetylsalicylic Acid",
-                brand="Bayer",
-                strength="300 mg",
-                unit_weight=0.35,
-                initial_weight=7.0,   # 20 units × 0.35g
-                current_weight=1.4,   # 20% stock
-                quantity=4,
-                reorder_level=5,
-                max_capacity=20,
-                expiry_date=date.today() + timedelta(days=100),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_3.id
-            ),
-            Medicine(
-                compartment_number=4,
-                trade_name="Gel Antibacterial",
-                generic_name="Ethanol",
-                brand="PureHands",
-                strength="60 ml",
-                unit_weight=60.0,
-                initial_weight=360.0, # 6 units × 60g
-                current_weight=180.0, # 50% stock
-                quantity=3,
-                reorder_level=2,
-                max_capacity=6,
-                expiry_date=date.today() + timedelta(days=250),
-                last_scan_at=datetime.utcnow(),
-                botiquin_id=botiquin_unassigned_3.id
-            ),
-        ]
-        db.session.add_all(medicines_unassigned_3)
-
+        # Commit all changes
         db.session.commit()
+        print("✅ Database seeded successfully!")
+        print(f"📊 Created:")
+        print(f"   - 1 Super Admin user")
+        print(f"   - 5 Companies")
+        print(f"   - 5 Company Admin users")
+        print(f"   - 8 Botiquines (5 assigned, 3 unassigned)")
+        print(f"   - 32 Medicines with realistic weight data (ALL botiquines have weight data)")
+        print()
+        print("🔑 Login Credentials:")
+        print("   Super Admin: admin / admin123")
+        print("   Demo Company: demo_admin / password123")
+        print("   Health Corp: health_admin / healthpass456")
+        print("   TechCorp: tech_admin / techpass123")
+        print("   Manufacturing: mfg_admin / mfgpass123")
+        print("   Healthcare Plus: healthcare_admin / healthcarepass123")
 
 if __name__ == "__main__":
     init_db()
-    print("Database seeded successfully")

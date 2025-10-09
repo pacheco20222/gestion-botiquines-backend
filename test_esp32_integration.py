@@ -22,10 +22,10 @@ def test_esp32_json_reception():
             "average_weight": 0.5  # Default unit weight for all compartments
         },
         "compartments": [
-            {"compartment": 1, "weight": 9.9, "unit_weight": 0.5},   # Tylenol: 9.9g current, 0.5g per unit
-            {"compartment": 2, "weight": 2.4, "unit_weight": 0.4},   # Ibuprofen: 2.4g current, 0.4g per unit  
-            {"compartment": 3, "weight": 0.35, "unit_weight": 0.35}, # Aspirin: 0.35g current, 0.35g per unit
-            {"compartment": 4, "weight": 180.0, "unit_weight": 60.0} # Gel: 180g current, 60g per unit
+            {"compartment": 1, "weight": 9.9, "unit": "grams", "medicine_name": "tylenol"},   # Tylenol: 9.9g current weight
+            {"compartment": 2, "weight": 2.4, "unit": "grams", "medicine_name": "ibuprofen"},   # Ibuprofen: 2.4g current weight  
+            {"compartment": 3, "weight": 0.35, "unit": "grams", "medicine_name": "aspirin"}, # Aspirin: 0.35g current weight
+            {"compartment": 4, "weight": 180.0, "unit": "grams", "medicine_name": "gel"} # Gel: 180g current weight
         ]
     }
     

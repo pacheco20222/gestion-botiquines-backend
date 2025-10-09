@@ -58,6 +58,7 @@ def login():
                         "id": user.id,
                         "username": user.username,
                         "user_type": user.user_type,
+                        "company_id": user.company_id,
                         "company": user.company.name if user.company else None
                     }
                 }), 200

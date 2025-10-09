@@ -160,11 +160,8 @@ class Medicine(db.Model):
     
     # Compartment assignment (1 to total_compartments)
     compartment_number = db.Column(db.Integer, nullable=True, index=True)
-    # Medicine information
-    trade_name = db.Column(db.String(120), nullable=False)   # Commercial name
-    generic_name = db.Column(db.String(120), nullable=False)  # Generic name
-    brand = db.Column(db.String(120))                         # Brand or lab
-    strength = db.Column(db.String(80))                       # Presentation/strength
+    # Medicine information (simplified)
+    medicine_name = db.Column(db.String(120), nullable=True)  # Name from hardware or admin assignment
     
     # Weight management for automatic quantity calculation (peso promedio por unidad)
     unit_weight = db.Column(db.Float, nullable=True)
@@ -195,7 +192,7 @@ class Medicine(db.Model):
             return calculated_qty
         return self.quantity
     
-    def update_from_sensor(self, weight_reading: float):
+    def update_from_sensor(self, weight_reading: float, medicine_name: str = None):
         """
         Update medicine data from sensor reading.
         Called when hardware sends weight data.
@@ -204,8 +201,13 @@ class Medicine(db.Model):
         if self.initial_weight is None:
             self.initial_weight = weight_reading
             
+        # Update medicine name if provided by hardware
+        if medicine_name:
+            self.medicine_name = medicine_name
+            
         self.current_weight = weight_reading
-        self.calculate_quantity_from_weight()
+        # Note: quantity calculation requires unit_weight which is set by admin
+        # self.calculate_quantity_from_weight() - removed since hardware doesn't provide unit_weight
         self.last_scan_at = datetime.utcnow()
         return self.quantity
 
@@ -231,17 +233,30 @@ class Medicine(db.Model):
 
     def status(self) -> str:
         """
-        Returns a detailed status string for the medicine.
-        - "OUT_OF_STOCK" if quantity = 0
-        - "EXPIRED" if already expired
-        - "EXPIRES_SOON" if expiry_date ≤ 7 days
-        - "EXPIRES_30" if expiry_date ≤ 30 days
-        - "LOW_STOCK" if quantity ≤ reorder_level
-        - Otherwise "OK"
+        Returns a detailed status string for the medicine based on weight data.
+        Priority: Stock level > Expiry status (for better user experience)
+        - "OUT_OF_STOCK" if no weight data or current_weight = 0
+        - "LOW_STOCK" if stock percentage ≤ 20% (critical stock takes priority)
+        - "EXPIRED" if already expired AND stock > 20%
+        - "EXPIRES_SOON" if expiry_date ≤ 7 days AND stock > 20%
+        - "EXPIRES_30" if expiry_date ≤ 30 days AND stock > 20%
+        - "GOOD_STOCK" if stock percentage 21-75%
+        - "FULL_STOCK" if stock percentage > 75%
         """
-        if self.quantity <= 0:
+        # Check if we have weight data
+        if not self.current_weight or not self.initial_weight or self.initial_weight <= 0:
             return "OUT_OF_STOCK"
 
+        # Calculate stock percentage based on weight
+        stock_percentage = (self.current_weight / self.initial_weight) * 100
+        
+        # Critical stock levels take priority over expiry
+        if stock_percentage <= 0:
+            return "OUT_OF_STOCK"
+        elif stock_percentage <= 20:
+            return "LOW_STOCK"
+
+        # For medicines with good stock, check expiry status
         days = self.days_to_expiry()
         if days is not None:
             if days < 0:
@@ -251,21 +266,24 @@ class Medicine(db.Model):
             if days <= 30:
                 return "EXPIRES_30"
 
-        if self.quantity <= self.reorder_level:
-            return "LOW_STOCK"
-
-        return "OK"
+        # Stock level for medicines with good stock and no expiry issues
+        if stock_percentage <= 75:
+            return "GOOD_STOCK"
+        else:
+            return "FULL_STOCK"
     
     def get_status_color(self) -> str:
         """Returns Bootstrap color class based on status"""
         status = self.status()
         color_map = {
-            "OUT_OF_STOCK": "dark",
-            "EXPIRED": "danger",
+            "FULL_STOCK": "success",
+            "GOOD_STOCK": "success", 
+            "LOW_STOCK": "warning",
             "EXPIRES_SOON": "warning",
             "EXPIRES_30": "secondary",
-            "LOW_STOCK": "warning",
-            "OK": "success"
+            "OUT_OF_STOCK": "danger",
+            "EXPIRED": "danger",
+            "NO_DATA": "secondary"
         }
         return color_map.get(status, "secondary")
 
@@ -278,11 +296,8 @@ class Medicine(db.Model):
             "botiquin_id": self.botiquin_id,
             "botiquin_name": self.botiquin.name if self.botiquin else None,
             "compartment_number": self.compartment_number,
-            "trade_name": self.trade_name,
-            "generic_name": self.generic_name,
-            "brand": self.brand,
-            "strength": self.strength,
-        "average_weight": self.unit_weight,
+            "medicine_name": self.medicine_name,
+            "average_weight": self.unit_weight,
             "initial_weight": self.initial_weight,
             "current_weight": self.current_weight,
             "quantity": self.quantity,
