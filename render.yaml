@@ -7,9 +7,9 @@ services:
     plan: free
     envVars:
       - key: DATABASE_URL
-        sync: false
+        value: "mysql+pymysql://bentheblaster:Pajarito1234%23@pacheco-mysql-aws.cx028yiy8o56.us-east-2.rds.amazonaws.com:3306/botiquines"
       - key: SECRET_KEY
-        generateValue: true
+        value: "your-secret-key-here-change-in-production"
       - key: FLASK_ENV
         value: production
       - key: FLASK_DEBUG
@@ -17,4 +17,4 @@ services:
       - key: PORT
         value: "10000"
       - key: ALLOWED_ORIGINS
-        value: "https://your-frontend-domain.vercel.app"
+        value: "http://localhost:5173,http://127.0.0.1:5173,https://your-frontend-domain.vercel.app"
