@@ -129,17 +129,33 @@ def receive_sensor_data():
             ).first()
             
             if not medicine:
-                comp_log.error_message = f"No medicine found in compartment {compartment_number}"
-                comp_log.processed = False
+                # Create a new medicine record for this compartment
+                medicine = Medicine(
+                    botiquin_id=botiquin.id,
+                    compartment_number=compartment_number,
+                    medicine_name=medicine_name,  # Use name from hardware if provided
+                    current_weight=weight,
+                    initial_weight=weight,  # Set initial weight on first reading
+                    quantity=0,  # Will be calculated when unit_weight is set by admin
+                    reorder_level=5,
+                    last_scan_at=datetime.utcnow()
+                )
+                db.session.add(medicine)
+                db.session.flush()  # Get the ID
+                
+                comp_log.processed = True
                 db.session.add(comp_log)
-                errors.append({
-                    "compartment": compartment_number,
-                    "warning": f"No medicine assigned to compartment {compartment_number}"
-                })
+                
                 results.append({
                     "compartment": compartment_number,
-                    "status": "empty",
-                    "weight": weight
+                    "medicine": medicine.medicine_name or "No asignado",
+                    "old_weight": None,
+                    "new_weight": weight,
+                    "old_quantity": 0,
+                    "new_quantity": 0,
+                    "quantity_change": 0,
+                    "status": "NEW_MEDICINE",
+                    "message": "New medicine record created"
                 })
                 continue
             

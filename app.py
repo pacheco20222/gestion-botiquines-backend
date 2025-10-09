@@ -24,6 +24,7 @@ from routes.user_routes import bp as users_bp
 from routes.botiquines import bp as botiquines_bp
 from routes.hardware import bp as hardware_bp
 from routes.companies import bp as companies_bp
+from routes.admin import bp as admin_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -79,6 +80,7 @@ def create_app():
     app.register_blueprint(botiquines_bp, url_prefix="/api/botiquines")
     app.register_blueprint(hardware_bp, url_prefix="/api/hardware")
     app.register_blueprint(companies_bp, url_prefix="/api/companies")
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
 
 
     # 4) Health check route (simple MVP check)

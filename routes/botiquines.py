@@ -14,7 +14,7 @@ bp = Blueprint("botiquines", __name__)
 def validate_botiquin_payload(data, partial=False):
     errors = []
     
-    required = ["hardware_id", "name", "company_id"]
+    required = ["hardware_id", "name"]
     
     if not partial:
         for f in required:
@@ -28,28 +28,13 @@ def validate_botiquin_payload(data, partial=False):
             errors.append(f"Company with id {data['company_id']} does not exist")
     
     # Validate compartment configuration
-    for field in ["total_compartments", "compartment_rows", "compartment_cols"]:
-        if field in data and data[field] is not None:
-            try:
-                v = int(data[field])
-                if field == "total_compartments":
-                    if v < 4:
-                        errors.append("'total_compartments' must be at least 4")
-                elif v <= 0:
-                    errors.append(f"'{field}' must be > 0")
-            except (TypeError, ValueError):
-                errors.append(f"'{field}' must be an integer")
-    
-    # Validate rows * cols = total_compartments if all are provided
-    if all(f in data for f in ["total_compartments", "compartment_rows", "compartment_cols"]):
+    if "total_compartments" in data and data["total_compartments"] is not None:
         try:
-            total = int(data["total_compartments"])
-            rows = int(data["compartment_rows"])
-            cols = int(data["compartment_cols"])
-            if rows * cols != total:
-                errors.append(f"rows ({rows}) * cols ({cols}) must equal total_compartments ({total})")
+            v = int(data["total_compartments"])
+            if v < 4:
+                errors.append("'total_compartments' must be at least 4")
         except (TypeError, ValueError):
-            pass
+            errors.append("'total_compartments' must be an integer")
     
     return (len(errors) == 0, errors)
 
@@ -86,14 +71,19 @@ def create_botiquin():
     if existing:
         return jsonify({"error": f"Botiquin with hardware_id '{data.get('hardware_id')}' already exists"}), 400
     
+    # Handle company_id - can be null
+    company_id = data.get("company_id")
+    if company_id is not None and company_id != "":
+        company_id = int(company_id)
+    else:
+        company_id = None
+    
     botiquin = Botiquin(
         hardware_id=data.get("hardware_id"),
         name=data.get("name"),
         location=data.get("location"),
-        company_id=int(data.get("company_id")),
+        company_id=company_id,
         total_compartments=int(data.get("total_compartments", 4)),
-        compartment_rows=int(data.get("compartment_rows", 2)),
-        compartment_cols=int(data.get("compartment_cols", 2)),
         active=data.get("active", True)
     )
     
@@ -132,48 +122,36 @@ def get_compartments(botiquin_id):
         if medicine.compartment_number:
             compartment_map[medicine.compartment_number] = {
                 "id": medicine.id,
-                "trade_name": medicine.trade_name,
-                "generic_name": medicine.generic_name,
+                "medicine_name": medicine.medicine_name,
                 "quantity": medicine.quantity,
+                "current_weight": medicine.current_weight,
+                "initial_weight": medicine.initial_weight,
+                "unit_weight": medicine.unit_weight,
                 "status": medicine.status(),
                 "status_color": medicine.get_status_color(),
                 "days_to_expiry": medicine.days_to_expiry()
             }
     
-    # Build grid
-    compartment_num = 1
-    for row in range(botiquin.compartment_rows):
-        grid_row = []
-        for col in range(botiquin.compartment_cols):
-            if compartment_num <= botiquin.total_compartments:
-                if compartment_num in compartment_map:
-                    grid_row.append({
-                        "compartment": compartment_num,
-                        "occupied": True,
-                        "medicine": compartment_map[compartment_num]
-                    })
-                else:
-                    grid_row.append({
-                        "compartment": compartment_num,
-                        "occupied": False,
-                        "medicine": None
-                    })
-            else:
-                grid_row.append({
-                    "compartment": None,
-                    "occupied": False,
-                    "medicine": None
-                })
-            compartment_num += 1
-        grid.append(grid_row)
+    # Build simple linear grid (since we don't have rows/cols)
+    for compartment_num in range(1, botiquin.total_compartments + 1):
+        if compartment_num in compartment_map:
+            grid.append({
+                "compartment": compartment_num,
+                "occupied": True,
+                "medicine": compartment_map[compartment_num]
+            })
+        else:
+            grid.append({
+                "compartment": compartment_num,
+                "occupied": False,
+                "medicine": None
+            })
     
     return jsonify({
         "botiquin_id": botiquin.id,
         "botiquin_name": botiquin.name,
-        "rows": botiquin.compartment_rows,
-        "cols": botiquin.compartment_cols,
         "total_compartments": botiquin.total_compartments,
-        "grid": grid,
+        "compartments": grid,
         "summary": {
             "occupied": len(compartment_map),
             "empty": botiquin.total_compartments - len(compartment_map),
@@ -203,11 +181,11 @@ def update_botiquin(botiquin_id):
     
     # Update fields
     fields = ["hardware_id", "name", "location", "company_id", 
-              "total_compartments", "compartment_rows", "compartment_cols", "active"]
+              "total_compartments", "active"]
     
     for field in fields:
         if field in data:
-            if field in ["company_id", "total_compartments", "compartment_rows", "compartment_cols"]:
+            if field in ["company_id", "total_compartments"]:
                 setattr(botiquin, field, int(data[field]))
             else:
                 setattr(botiquin, field, data[field])

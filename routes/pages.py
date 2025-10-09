@@ -159,7 +159,7 @@ def botiquin_detail(botiquin_id):
         summary=summary,
         current_status=status_filter,
         comp_map=comp_map,
-        grid_cols=botiquin.compartment_cols
+        grid_cols=2  # Default to 2 columns for display
     )
 
 
