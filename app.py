@@ -6,13 +6,12 @@ Flask application factory for the MVP.
 - Registers blueprints (routes)
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, make_response
 from flask_login import LoginManager
 from datetime import datetime
 import os
 
 # Add CORS support
-from flask import request
 from functools import wraps
 
 from db import init_db   # our init_db function
@@ -58,6 +57,17 @@ def create_app():
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+
+    # Handle CORS preflight requests
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = make_response()
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization")
+            response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS")
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            return response
 
     # 1) Database setup
     init_db(app)
