@@ -25,6 +25,7 @@ from routes.botiquines import bp as botiquines_bp
 from routes.hardware import bp as hardware_bp
 from routes.companies import bp as companies_bp
 from routes.admin import bp as admin_bp
+from routes.landing import bp as landing_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -74,6 +75,7 @@ def create_app():
             return None
 
     # 3) Register blueprints
+    app.register_blueprint(landing_bp)  # Landing page (no prefix for root route)
     app.register_blueprint(medicines_bp, url_prefix="/api/medicines")
     app.register_blueprint(users_bp)
     # app.register_blueprint(pages_bp)  # Not needed for React SPA
