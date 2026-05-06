@@ -99,8 +99,18 @@ def list_medicines():
     if not current_user.is_super_admin():
         query = query.join(Botiquin).filter(Botiquin.company_id == current_user.company_id)
     
-    meds = query.order_by(Medicine.id.asc()).all()
-    return jsonify([m.to_dict() for m in meds]), 200
+    # Pagination
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    pagination = query.order_by(Medicine.id.asc()).paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        "items": [m.to_dict() for m in pagination.items],
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages
+    }), 200
 
 
 @bp.get("/botiquin/<int:botiquin_id>")
