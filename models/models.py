@@ -207,9 +207,8 @@ class Medicine(db.Model):
             self.medicine_name = medicine_name
             
         self.current_weight = weight_reading
-        # Note: quantity calculation requires unit_weight which is set by admin
-        # self.calculate_quantity_from_weight() - removed since hardware doesn't provide unit_weight
         self.last_scan_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
         return self.quantity
 
     @property
