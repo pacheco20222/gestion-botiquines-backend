@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from datetime import datetime
 import secrets
+from sqlalchemy.orm import selectinload
 from db import db
 from models.models import Botiquin, Company, Medicine
 from utils.auth import require_auth
@@ -53,7 +54,7 @@ def list_botiquines():
     if not current_user.is_super_admin():
         company_id = current_user.company_id
     
-    query = Botiquin.query
+    query = Botiquin.query.options(selectinload(Botiquin.medicines))
     if company_id is not None:
         if company_id == "":
             # Filter for unassigned botiquines (company_id IS NULL)
@@ -62,8 +63,18 @@ def list_botiquines():
             # Filter for specific company
             query = query.filter_by(company_id=company_id)
     
-    botiquines = query.order_by(Botiquin.id.asc()).all()
-    return jsonify([b.to_dict() for b in botiquines]), 200
+    # Pagination
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    pagination = query.order_by(Botiquin.id.asc()).paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        "items": [b.to_dict() for b in pagination.items],
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages
+    }), 200
 
 
 @bp.post("/")
