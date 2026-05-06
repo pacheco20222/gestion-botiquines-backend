@@ -9,6 +9,8 @@ Flask application factory for the MVP.
 from flask import Flask, jsonify, request, make_response
 from flask_login import LoginManager
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from datetime import datetime
 import os
 
@@ -20,7 +22,6 @@ from db import db        # the shared SQLAlchemy instance
 
 from routes.medicines import bp as medicines_bp
 from routes.user_routes import bp as users_bp
-# from routes.pages import bp as pages_bp  # Not needed for React SPA
 from routes.botiquines import bp as botiquines_bp
 from routes.hardware import bp as hardware_bp
 from routes.companies import bp as companies_bp
@@ -32,6 +33,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 login_manager = LoginManager()
 login_manager.login_view = "users.login"
 login_manager.login_message_category = "warning"
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 
 def create_app():
@@ -68,6 +75,7 @@ def create_app():
 
     # 2) Authentication setup
     login_manager.init_app(app)
+    limiter.init_app(app)
 
     from models.models import User
 
@@ -84,7 +92,6 @@ def create_app():
     app.register_blueprint(landing_bp)  # Landing page (no prefix for root route)
     app.register_blueprint(medicines_bp, url_prefix="/api/medicines")
     app.register_blueprint(users_bp)
-    # app.register_blueprint(pages_bp)  # Not needed for React SPA
     app.register_blueprint(botiquines_bp, url_prefix="/api/botiquines")
     app.register_blueprint(hardware_bp, url_prefix="/api/hardware")
     app.register_blueprint(companies_bp, url_prefix="/api/companies")

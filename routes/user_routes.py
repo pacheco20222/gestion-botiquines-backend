@@ -9,11 +9,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
 from db import db
 from models.models import User, Company
+from app import limiter
 
 bp = Blueprint("users", __name__)
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login():
     """Handle user login - FIXED to handle both form and JSON data"""
     if request.method == "GET":
