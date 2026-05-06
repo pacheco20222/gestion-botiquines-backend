@@ -303,15 +303,9 @@ def change_password():
 def check_auth():
     """Check if user is authenticated and return session info"""
     if not current_user.is_authenticated or not getattr(current_user, "active", False):
-        return jsonify({"authenticated": False}), 200
+        return jsonify({"authenticated": False, "error": "Not authenticated"}), 401
 
-    user = current_user
     return jsonify({
         "authenticated": True,
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "user_type": user.user_type,
-            "company": user.company.name if user.company else None
-        }
+        "user": current_user.to_dict()
     }), 200
