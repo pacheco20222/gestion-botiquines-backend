@@ -4,49 +4,21 @@ Receives sensor data and updates medicine inventory.
 """
 
 from flask import Blueprint, request, jsonify
+from flask_login import current_user
 from datetime import datetime
 import json
 from db import db
 from models.models import Botiquin, Medicine, HardwareLog
-
-# Expected payload example for sensor updates (MVP assumes 4 compartments minimum):
-# {
-#     "hardware_id": "BOT001",
-#     "timestamp": "2025-09-23T10:30:00",
-#     "unit_payload": {
-#         "average_weight": 0.5  # optional shared value if all medicines use same average (unit) weight (grams)
-#     },
-#     "compartments": [
-#         {
-#             "compartment": 1,
-#             "weight": 45.5,
-#             "unit": "grams",
-#             "medicine_name": "tylenol",  # optional - can be assigned by admin if not provided
-#             "average_weight": 0.5  # optional override per compartment
-#         },
-#         ...
-#     ]
-# }
+from utils.auth import require_auth
 
 bp = Blueprint("hardware", __name__)
 
 
 @bp.post("/sensor_data")
+@require_auth
 def receive_sensor_data():
     """
     Main endpoint to receive data from hardware sensors.
-    
-    Expected JSON format:
-    {
-        "hardware_id": "BOT001",
-        "timestamp": "2025-09-23T10:30:00",
-        "sensor_type": "weight",
-        "compartments": [
-            {"compartment": 1, "weight": 45.5, "unit": "grams"},
-            {"compartment": 2, "weight": 30.2, "unit": "grams"},
-            {"compartment": 3, "weight": 0.0, "unit": "grams"}
-        ]
-    }
     """
     data = request.get_json()
     
@@ -78,29 +50,20 @@ def receive_sensor_data():
             db.session.commit()
             return jsonify({"error": f"Botiquin not found for hardware_id: {data['hardware_id']}"}), 404
         
+        # Enforce company isolation
+        if not current_user.is_super_admin() and botiquin.company_id != current_user.company_id:
+            return jsonify({"error": "Access denied: botiquin belongs to another company"}), 403
+
         log_entry.botiquin_id = botiquin.id
         
         results = []
         errors = []
 
-        payload_section = data.get("unit_payload", {})
-        payload_avg_weight = payload_section.get("average_weight", payload_section.get("unit_weight"))
-        if payload_avg_weight is not None:
-            try:
-                payload_avg_weight = float(payload_avg_weight)
-                if payload_avg_weight <= 0:
-                    errors.append({"warning": "Payload average_weight must be greater than zero"})
-                    payload_avg_weight = None
-            except (TypeError, ValueError):
-                errors.append({"warning": "Payload average_weight is not a valid number"})
-                payload_avg_weight = None
-        
         # Iterate through compartments
         for comp in data["compartments"]:
             compartment_number = comp.get("compartment")
             weight = comp.get("weight")
-            medicine_name = comp.get("medicine_name")  # New field from hardware
-            avg_weight_override = comp.get("average_weight", comp.get("unit_weight"))
+            medicine_name = comp.get("medicine_name")
             
             # Create individual log entries per compartment
             comp_log = HardwareLog(
@@ -133,15 +96,15 @@ def receive_sensor_data():
                 medicine = Medicine(
                     botiquin_id=botiquin.id,
                     compartment_number=compartment_number,
-                    medicine_name=medicine_name,  # Use name from hardware if provided
+                    medicine_name=medicine_name,
                     current_weight=weight,
-                    initial_weight=weight,  # Set initial weight on first reading
-                    quantity=0,  # Will be calculated when unit_weight is set by admin
+                    initial_weight=weight,
+                    quantity=0,
                     reorder_level=5,
                     last_scan_at=datetime.utcnow()
                 )
                 db.session.add(medicine)
-                db.session.flush()  # Get the ID
+                db.session.flush()
                 
                 comp_log.processed = True
                 db.session.add(comp_log)
@@ -149,26 +112,15 @@ def receive_sensor_data():
                 results.append({
                     "compartment": compartment_number,
                     "medicine": medicine.medicine_name or "No asignado",
-                    "old_weight": None,
-                    "new_weight": weight,
-                    "old_quantity": 0,
-                    "new_quantity": 0,
-                    "quantity_change": 0,
-                    "status": "NEW_MEDICINE",
-                    "message": "New medicine record created"
+                    "status": "NEW_MEDICINE"
                 })
                 continue
             
-            # Note: unit_weight is not updated from hardware data
-            # It will be set by admin when assigning medicine names
-
             old_quantity = medicine.quantity
             old_weight = medicine.current_weight
 
-            # Update from sensor (uses internal logic to update quantity based on current unit_weight)
             new_quantity = medicine.update_from_sensor(weight, medicine_name)
             
-            # Mark compartment log as processed
             comp_log.processed = True
             db.session.add(comp_log)
             
@@ -179,160 +131,95 @@ def receive_sensor_data():
                 "new_weight": medicine.current_weight,
                 "old_quantity": old_quantity,
                 "new_quantity": new_quantity,
-                "quantity_change": new_quantity - old_quantity,
                 "status": medicine.status()
             })
         
         # Update botiquin sync timestamp
         botiquin.last_sync_at = datetime.utcnow()
-        
-        # Mark main log as processed
         log_entry.processed = True
         
         db.session.add(log_entry)
         db.session.commit()
         
-        # Prepare response
-        response = {
+        return jsonify({
             "success": len(errors) == 0,
-            "botiquin": {
-                "id": botiquin.id,
-                "name": botiquin.name,
-                "hardware_id": botiquin.hardware_id
-            },
+            "botiquin": botiquin.name,
             "results": results,
-            "errors": errors if errors else None,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        # Add alerts if any medicine has critical or warning status
-        alerts = []
-        for res in results:
-            status = res.get("status")
-            if status in ["OUT_OF_STOCK", "EXPIRED"]:
-                alerts.append({
-                    "type": "critical",
-                    "message": f"{res.get('medicine')} is {status}"
-                })
-            elif status in ["LOW_STOCK", "EXPIRES_SOON"]:
-                alerts.append({
-                    "type": "warning", 
-                    "message": f"{res.get('medicine')} is {status}"
-                })
-        if alerts:
-            response["alerts"] = alerts
-        
-        return jsonify(response), 200
+            "errors": errors if errors else None
+        }), 200
         
     except Exception as e:
         log_entry.error_message = str(e)
-        log_entry.processed = False
         db.session.add(log_entry)
         db.session.commit()
-        return jsonify({"error": f"Processing error: {str(e)}"}), 500
-
-
-# Removed /batch_sensor_data endpoint as per instructions
+        return jsonify({"error": str(e)}), 500
 
 
 @bp.get("/logs")
+@require_auth
 def get_hardware_logs():
-    """
-    Get hardware communication logs for debugging.
-    Can filter by botiquin_id, processed status, or date range.
-    """
+    """Get hardware communication logs for debugging."""
     botiquin_id = request.args.get("botiquin_id")
-    processed = request.args.get("processed")
     limit = request.args.get("limit", 100, type=int)
     
     query = HardwareLog.query
     
-    if botiquin_id:
+    # Enforce company isolation for logs
+    if not current_user.is_super_admin():
+        query = query.join(Botiquin).filter(Botiquin.company_id == current_user.company_id)
+        if botiquin_id:
+            # require_auth already verifies botiquin_id in request.args
+            query = query.filter(HardwareLog.botiquin_id == botiquin_id)
+    elif botiquin_id:
         query = query.filter_by(botiquin_id=botiquin_id)
     
-    if processed is not None:
-        query = query.filter_by(processed=processed.lower() == "true")
-    
     logs = query.order_by(HardwareLog.created_at.desc()).limit(limit).all()
-    
     return jsonify([log.to_dict() for log in logs]), 200
 
 
 @bp.post("/test_connection")
+@require_auth
 def test_hardware_connection():
-    """
-    Test endpoint for hardware to verify connection.
-    Hardware can ping this to confirm API is reachable.
-    """
+    """Test endpoint for hardware to verify connection."""
     data = request.get_json() or {}
     hardware_id = data.get("hardware_id", "unknown")
     
-    # Check if botiquin exists
-    botiquin = None
-    if hardware_id != "unknown":
-        botiquin = Botiquin.query.filter_by(hardware_id=hardware_id).first()
+    botiquin = Botiquin.query.filter_by(hardware_id=hardware_id).first()
     
+    # Isolation check
+    if botiquin and not current_user.is_super_admin() and botiquin.company_id != current_user.company_id:
+        return jsonify({"error": "Access denied"}), 403
+
     return jsonify({
         "status": "connected",
-        "timestamp": datetime.utcnow().isoformat(),
-        "hardware_id": hardware_id,
         "botiquin_found": botiquin is not None,
-        "botiquin_name": botiquin.name if botiquin else None,
-        "message": "Hardware connection successful"
+        "botiquin_name": botiquin.name if botiquin else None
     }), 200
 
 
 @bp.post("/register_hardware")
+@require_auth
 def register_hardware():
-    """
-    Register new hardware with the system.
-    Creates a new botiquin if it doesn't exist.
-    
-    Expected JSON:
-    {
-        "hardware_id": "BOT001",
-        "name": "Botiquín Principal",
-        "location": "Planta Baja",
-        "compartments": 4
-    }
-    """
+    """Register new hardware with the system."""
     data = request.get_json()
+    if not data or "hardware_id" not in data or "name" not in data:
+        return jsonify({"error": "hardware_id and name required"}), 400
     
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    
-    # Check required fields
-    required = ["hardware_id", "name"]
-    missing = [f for f in required if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {missing}"}), 400
-    
-    # Check if already exists
     existing = Botiquin.query.filter_by(hardware_id=data["hardware_id"]).first()
     if existing:
-        return jsonify({
-            "status": "already_registered",
-            "botiquin": existing.to_dict()
-        }), 200
+        return jsonify({"status": "already_registered", "botiquin": existing.to_dict()}), 200
     
-    # company_id is optional
-    company_id = data.get("company_id", None)
+    # Enforce company assignment
+    company_id = data.get("company_id")
+    if not current_user.is_super_admin():
+        company_id = current_user.company_id
     
-    compartments = data.get("compartments", 4)
-    try:
-        compartments = int(compartments)
-    except (TypeError, ValueError):
-        return jsonify({"error": "'compartments' must be an integer"}), 400
-
-    if compartments < 4:
-        return jsonify({"error": "Hardware must report at least 4 compartments"}), 400
-
     botiquin = Botiquin(
         hardware_id=data["hardware_id"],
         name=data["name"],
         location=data.get("location", ""),
         company_id=company_id,
-        total_compartments=compartments,
+        total_compartments=int(data.get("compartments", 4)),
         active=True,
         last_sync_at=datetime.utcnow()
     )
@@ -340,8 +227,4 @@ def register_hardware():
     db.session.add(botiquin)
     db.session.commit()
     
-    return jsonify({
-        "status": "registered",
-        "botiquin": botiquin.to_dict(),
-        "message": f"Hardware registered successfully as '{botiquin.name}'"
-    }), 201
+    return jsonify({"status": "registered", "botiquin": botiquin.to_dict()}), 201

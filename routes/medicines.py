@@ -4,9 +4,11 @@ Updated to support botiquines and weight-based calculations.
 """
 
 from flask import Blueprint, request, jsonify
+from flask_login import current_user
 from datetime import datetime, date
 from db import db
 from models.models import Medicine, Botiquin
+from utils.auth import require_auth
 
 bp = Blueprint("medicines", __name__)
 
@@ -78,13 +80,13 @@ def validate_payload(data, *, partial=False):
         exp = parse_date(data["expiry_date"])
         if exp is None:
             errors.append("'expiry_date' must be YYYY-MM-DD")
-        # Note: We allow past dates for already expired medicines in inventory
 
     return (len(errors) == 0, errors)
 
 # -------- Routes --------
 
 @bp.get("/")
+@require_auth
 def list_medicines():
     """List all medicines, optionally filtered by botiquin"""
     botiquin_id = request.args.get("botiquin_id")
@@ -93,11 +95,16 @@ def list_medicines():
     if botiquin_id:
         query = query.filter_by(botiquin_id=botiquin_id)
     
+    # Enforce company isolation for list
+    if not current_user.is_super_admin():
+        query = query.join(Botiquin).filter(Botiquin.company_id == current_user.company_id)
+    
     meds = query.order_by(Medicine.id.asc()).all()
     return jsonify([m.to_dict() for m in meds]), 200
 
 
 @bp.get("/botiquin/<int:botiquin_id>")
+@require_auth
 def list_medicines_by_botiquin(botiquin_id):
     """List all medicines in a specific botiquin"""
     botiquin = Botiquin.query.get(botiquin_id)
@@ -112,11 +119,10 @@ def list_medicines_by_botiquin(botiquin_id):
 
 
 @bp.get("/filter")
+@require_auth
 def filter_medicines():
     """
     Returns medicines filtered by status and/or botiquin.
-    Example: /api/medicines/filter?status=EXPIRED&botiquin_id=1
-    Valid statuses: OUT_OF_STOCK, EXPIRED, EXPIRES_SOON, EXPIRES_30, LOW_STOCK, OK
     """
     status = request.args.get("status")
     botiquin_id = request.args.get("botiquin_id")
@@ -124,6 +130,10 @@ def filter_medicines():
     query = Medicine.query
     if botiquin_id:
         query = query.filter_by(botiquin_id=botiquin_id)
+    
+    # Enforce company isolation for filter
+    if not current_user.is_super_admin():
+        query = query.join(Botiquin).filter(Botiquin.company_id == current_user.company_id)
     
     meds = query.order_by(Medicine.id.asc()).all()
     
@@ -136,16 +146,20 @@ def filter_medicines():
 
 
 @bp.get("/alerts")
+@require_auth
 def get_alerts():
     """
     Returns medicines grouped by alert category.
-    Can be filtered by botiquin_id.
     """
     botiquin_id = request.args.get("botiquin_id")
     
     query = Medicine.query
     if botiquin_id:
         query = query.filter_by(botiquin_id=botiquin_id)
+    
+    # Enforce company isolation for alerts
+    if not current_user.is_super_admin():
+        query = query.join(Botiquin).filter(Botiquin.company_id == current_user.company_id)
     
     meds = query.order_by(Medicine.id.asc()).all()
     
@@ -169,6 +183,7 @@ def get_alerts():
 
 
 @bp.post("/")
+@require_auth
 def create_medicine():
     """Create a new medicine in a botiquin"""
     data = request.get_json() or {}
@@ -176,15 +191,20 @@ def create_medicine():
     if not ok:
         return jsonify({"errors": errors}), 400
 
+    bot_id = int(data.get("botiquin_id"))
+    
+    # Enforce company isolation for creation
+    if not current_user.is_super_admin():
+        bot = Botiquin.query.get(bot_id)
+        if not bot or bot.company_id != current_user.company_id:
+            return jsonify({"error": "Access denied: cannot add medicine to another company's botiquin"}), 403
+
     weight_value = data.get("average_weight", data.get("unit_weight"))
 
     med = Medicine(
-        botiquin_id=int(data.get("botiquin_id")),
+        botiquin_id=bot_id,
         compartment_number=int(data.get("compartment_number")) if data.get("compartment_number") else None,
-        trade_name=data.get("trade_name"),
-        generic_name=data.get("generic_name"),
-        brand=data.get("brand"),
-        strength=data.get("strength"),
+        medicine_name=data.get("medicine_name"), # Using the generic field from model
         unit_weight=float(weight_value) if weight_value else None,
         current_weight=float(data.get("current_weight")) if data.get("current_weight") else None,
         quantity=int(data.get("quantity")),
@@ -195,7 +215,6 @@ def create_medicine():
         last_scan_at=datetime.utcnow(),
     )
     
-    # Calculate quantity from weight if both weights are provided
     if med.unit_weight and med.current_weight:
         med.calculate_quantity_from_weight()
     
@@ -205,6 +224,7 @@ def create_medicine():
 
 
 @bp.get("/<int:med_id>")
+@require_auth
 def get_medicine(med_id):
     med = Medicine.query.get(med_id)
     if not med:
@@ -213,6 +233,7 @@ def get_medicine(med_id):
 
 
 @bp.put("/<int:med_id>")
+@require_auth
 def update_medicine(med_id):
     med = Medicine.query.get(med_id)
     if not med:
@@ -223,10 +244,9 @@ def update_medicine(med_id):
     if not ok:
         return jsonify({"errors": errors}), 400
 
-    # List of fields that can be updated
     fields = [
-        "botiquin_id", "compartment_number", "trade_name", "generic_name", 
-        "brand", "strength", "average_weight", "unit_weight", "current_weight", "quantity", 
+        "botiquin_id", "compartment_number", "medicine_name", 
+        "average_weight", "unit_weight", "current_weight", "quantity", 
         "reorder_level", "max_capacity", "expiry_date", "batch_number", "last_scan_at"
     ]
     
@@ -235,26 +255,22 @@ def update_medicine(med_id):
             if f == "expiry_date":
                 setattr(med, f, parse_date(data[f]))
             elif f in ["quantity", "reorder_level", "compartment_number", "max_capacity", "botiquin_id"]:
-                setattr(med, f, int(data[f]) if data[f] is not None else None)
+                val = int(data[f]) if data[f] is not None else None
+                # Isolation: non-super-admin cannot change botiquin_id to another company's
+                if f == "botiquin_id" and not current_user.is_super_admin():
+                    new_bot = Botiquin.query.get(val)
+                    if not new_bot or new_bot.company_id != current_user.company_id:
+                        continue
+                setattr(med, f, val)
             elif f in ["average_weight", "unit_weight", "current_weight"]:
                 value = float(data[f]) if data[f] is not None else None
                 if f in ["average_weight", "unit_weight"]:
                     med.unit_weight = value
                 else:
                     med.current_weight = value
-            elif f == "last_scan_at":
-                val = data[f]
-                if val is True:
-                    setattr(med, f, datetime.utcnow())
-                elif isinstance(val, str):
-                    try:
-                        setattr(med, f, datetime.fromisoformat(val))
-                    except ValueError:
-                        pass
             else:
                 setattr(med, f, data[f])
     
-    # Recalculate quantity if weights changed
     if any(k in data for k in ["average_weight", "unit_weight", "current_weight"]):
         if med.unit_weight and med.current_weight:
             med.calculate_quantity_from_weight()
@@ -264,6 +280,7 @@ def update_medicine(med_id):
 
 
 @bp.delete("/<int:med_id>")
+@require_auth
 def delete_medicine(med_id):
     med = Medicine.query.get(med_id)
     if not med:
@@ -275,11 +292,8 @@ def delete_medicine(med_id):
 
 
 @bp.post("/<int:med_id>/update_weight")
+@require_auth
 def update_medicine_weight(med_id):
-    """
-    Special endpoint to update medicine weight from hardware.
-    Automatically calculates new quantity.
-    """
     med = Medicine.query.get(med_id)
     if not med:
         return jsonify({"error": "Medicine not found"}), 404
@@ -292,12 +306,9 @@ def update_medicine_weight(med_id):
     
     try:
         weight = float(weight)
-        if weight < 0:
-            return jsonify({"error": "Weight must be >= 0"}), 400
     except (TypeError, ValueError):
         return jsonify({"error": "Weight must be a number"}), 400
     
-    # Update weight and calculate new quantity
     old_quantity = med.quantity
     new_quantity = med.update_from_sensor(weight)
     
@@ -306,6 +317,5 @@ def update_medicine_weight(med_id):
     return jsonify({
         "medicine": med.to_dict(),
         "old_quantity": old_quantity,
-        "new_quantity": new_quantity,
-        "quantity_change": new_quantity - old_quantity
+        "new_quantity": new_quantity
     }), 200

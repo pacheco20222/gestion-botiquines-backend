@@ -4,9 +4,11 @@ Handles CRUD operations and compartment visualization.
 """
 
 from flask import Blueprint, request, jsonify
+from flask_login import current_user
 from datetime import datetime
 from db import db
 from models.models import Botiquin, Company, Medicine
+from utils.auth import require_auth
 
 bp = Blueprint("botiquines", __name__)
 
@@ -41,9 +43,14 @@ def validate_botiquin_payload(data, partial=False):
 # -------- Routes --------
 
 @bp.get("/")
+@require_auth
 def list_botiquines():
     """List all botiquines, optionally filtered by company"""
     company_id = request.args.get("company_id")
+    
+    # Enforce company isolation
+    if not current_user.is_super_admin():
+        company_id = current_user.company_id
     
     query = Botiquin.query
     if company_id is not None:
@@ -59,6 +66,7 @@ def list_botiquines():
 
 
 @bp.post("/")
+@require_auth
 def create_botiquin():
     """Create a new botiquin"""
     data = request.get_json() or {}
@@ -77,6 +85,10 @@ def create_botiquin():
         company_id = int(company_id)
     else:
         company_id = None
+        
+    # Enforce company isolation on creation
+    if not current_user.is_super_admin():
+        company_id = current_user.company_id
     
     botiquin = Botiquin(
         hardware_id=data.get("hardware_id"),
@@ -94,6 +106,7 @@ def create_botiquin():
 
 
 @bp.get("/<int:botiquin_id>")
+@require_auth
 def get_botiquin(botiquin_id):
     """Get a specific botiquin with its compartment status"""
     botiquin = Botiquin.query.get(botiquin_id)
@@ -104,6 +117,7 @@ def get_botiquin(botiquin_id):
 
 
 @bp.get("/<int:botiquin_id>/compartments")
+@require_auth
 def get_compartments(botiquin_id):
     """
     Get detailed compartment visualization data.
@@ -162,6 +176,7 @@ def get_compartments(botiquin_id):
 
 
 @bp.put("/<int:botiquin_id>")
+@require_auth
 def update_botiquin(botiquin_id):
     """Update botiquin information"""
     botiquin = Botiquin.query.get(botiquin_id)
@@ -186,7 +201,11 @@ def update_botiquin(botiquin_id):
     for field in fields:
         if field in data:
             if field in ["company_id", "total_compartments"]:
-                setattr(botiquin, field, int(data[field]))
+                val = int(data[field])
+                # Isolation: non-super-admin cannot change company_id
+                if field == "company_id" and not current_user.is_super_admin() and val != current_user.company_id:
+                    continue 
+                setattr(botiquin, field, val)
             else:
                 setattr(botiquin, field, data[field])
     
@@ -195,6 +214,7 @@ def update_botiquin(botiquin_id):
 
 
 @bp.delete("/<int:botiquin_id>")
+@require_auth
 def delete_botiquin(botiquin_id):
     """
     Delete a botiquin.
@@ -217,6 +237,7 @@ def delete_botiquin(botiquin_id):
 
 
 @bp.post("/<int:botiquin_id>/sync")
+@require_auth
 def sync_botiquin(botiquin_id):
     """
     Mark botiquin as synced with hardware.
@@ -236,6 +257,7 @@ def sync_botiquin(botiquin_id):
 
 
 @bp.get("/<int:botiquin_id>/stats")
+@require_auth
 def get_botiquin_stats(botiquin_id):
     """Get statistics for a specific botiquin"""
     botiquin = Botiquin.query.get(botiquin_id)

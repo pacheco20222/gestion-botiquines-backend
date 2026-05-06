@@ -8,79 +8,38 @@ from flask_login import current_user
 from datetime import datetime
 from db import db
 from models.models import Company, User, Botiquin, Medicine
-import base64
+from utils.auth import require_auth
 
 bp = Blueprint("companies", __name__)
 
 
-def get_current_user():
-    """Get current user from Basic Auth or session"""
-    # Try Basic Auth first (for API calls)
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.startswith('Basic '):
-        try:
-            # Decode Basic Auth
-            encoded_credentials = auth_header.split(' ')[1]
-            credentials = base64.b64decode(encoded_credentials).decode('utf-8')
-            username, password = credentials.split(':', 1)
-            
-            # Find user
-            user = User.query.filter_by(username=username, active=True).first()
-            if user and user.check_password(password):
-                return user
-        except Exception as e:
-            print(f"Basic Auth error: {e}")
-            pass
-    
-    # Fallback to session-based auth
-    if current_user.is_authenticated and getattr(current_user, "active", False):
-        return current_user
-    
-    return None
-
-
-def check_super_admin():
-    """Helper to verify if current user is super admin"""
-    user = get_current_user()
-    if not user:
-        return None
-    
-    if not user.is_super_admin():
-        return None
-    
-    return user
-
-
 @bp.route("/")
+@require_auth
 def list_companies():
     """
     List all companies.
     Super admin sees all, company admin sees only their company.
     """
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "Not authenticated"}), 401
-
-    if user.is_super_admin():
+    if current_user.is_super_admin():
         # Super admin sees all companies
         companies = Company.query.all()
     else:
         # Company admin sees only their company
-        if not user.company_id:
+        if not current_user.company_id:
             return jsonify({"error": "User not assigned to any company"}), 400
-        companies = [user.company]
+        companies = [current_user.company]
     
     return jsonify([c.to_dict() for c in companies]), 200
 
 
 @bp.route("/", methods=["POST"])
+@require_auth
 def create_company():
     """
     Create a new company.
     Only super admin can create companies.
     """
-    user = check_super_admin()
-    if not user:
+    if not current_user.is_super_admin():
         return jsonify({"error": "Only super admin can create companies"}), 403
     
     data = request.get_json() or {}
@@ -108,34 +67,27 @@ def create_company():
 
 
 @bp.route("/<int:company_id>")
+@require_auth
 def get_company(company_id):
     """
     Get company details.
     Users can only see their own company unless they're super admin.
     """
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "Not authenticated"}), 401
-    
     company = Company.query.get(company_id)
     if not company:
         return jsonify({"error": "Company not found"}), 404
-    
-    # Check permissions
-    if not user.is_super_admin() and user.company_id != company_id:
-        return jsonify({"error": "Access denied"}), 403
     
     return jsonify(company.to_dict()), 200
 
 
 @bp.route("/<int:company_id>", methods=["PUT"])
+@require_auth
 def update_company(company_id):
     """
     Update company information.
     Only super admin can update companies.
     """
-    user = check_super_admin()
-    if not user:
+    if not current_user.is_super_admin():
         return jsonify({"error": "Only super admin can update companies"}), 403
     
     company = Company.query.get(company_id)
@@ -164,13 +116,13 @@ def update_company(company_id):
 
 
 @bp.route("/<int:company_id>", methods=["DELETE"])
+@require_auth
 def delete_company(company_id):
     """
     Delete (deactivate) a company.
     Only super admin can delete companies.
     """
-    user = check_super_admin()
-    if not user:
+    if not current_user.is_super_admin():
         return jsonify({"error": "Only super admin can delete companies"}), 403
     
     company = Company.query.get(company_id)
@@ -199,21 +151,14 @@ def delete_company(company_id):
 
 
 @bp.route("/<int:company_id>/stats")
+@require_auth
 def get_company_stats(company_id):
     """
     Get detailed statistics for a company.
     """
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "Not authenticated"}), 401
-    
     company = Company.query.get(company_id)
     if not company:
         return jsonify({"error": "Company not found"}), 404
-    
-    # Check permissions
-    if not user.is_super_admin() and user.company_id != company_id:
-        return jsonify({"error": "Access denied"}), 403
     
     # Gather statistics
     botiquines = Botiquin.query.filter_by(company_id=company_id, active=True).all()
@@ -279,52 +224,35 @@ def get_company_stats(company_id):
 
 
 @bp.route("/<int:company_id>/botiquines")
+@require_auth
 def get_company_botiquines(company_id):
     """
     Get all botiquines for a company.
     """
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "Not authenticated"}), 401
-    
-    # Check permissions
-    if not user.is_super_admin() and user.company_id != company_id:
-        return jsonify({"error": "Access denied"}), 403
-    
     botiquines = Botiquin.query.filter_by(company_id=company_id).all()
     return jsonify([b.to_dict() for b in botiquines]), 200
 
 
 @bp.route("/<int:company_id>/users")
+@require_auth
 def get_company_users(company_id):
     """
     Get all users for a company.
     """
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "Not authenticated"}), 401
-    
-    # Check permissions
-    if not user.is_super_admin() and user.company_id != company_id:
-        return jsonify({"error": "Access denied"}), 403
-    
     users = User.query.filter_by(company_id=company_id).all()
     return jsonify([u.to_dict() for u in users]), 200
 
 
 @bp.route("/<int:company_id>/alerts")
+@require_auth
 def get_company_alerts(company_id):
     """
     Get all active alerts for a company's botiquines.
     """
-    user = get_current_user()
-    if not user:
-        return jsonify({"error": "Not authenticated"}), 401
-    
-    # Check permissions
-    if not user.is_super_admin() and user.company_id != company_id:
-        return jsonify({"error": "Access denied"}), 403
-    
+    company = Company.query.get(company_id)
+    if not company:
+        return jsonify({"error": "Company not found"}), 404
+
     botiquines = Botiquin.query.filter_by(company_id=company_id, active=True).all()
     
     alerts = {
@@ -339,14 +267,14 @@ def get_company_alerts(company_id):
             if status in ["EXPIRED", "OUT_OF_STOCK"]:
                 alerts["critical"].append({
                     "botiquin": bot.name,
-                    "medicine": med.trade_name,
+                    "medicine": med.medicine_name,
                     "status": status,
                     "compartment": med.compartment_number
                 })
             elif status in ["EXPIRES_SOON", "LOW_STOCK"]:
                 alerts["warning"].append({
                     "botiquin": bot.name,
-                    "medicine": med.trade_name,
+                    "medicine": med.medicine_name,
                     "status": status,
                     "compartment": med.compartment_number,
                     "days_to_expiry": med.days_to_expiry() if status == "EXPIRES_SOON" else None
@@ -354,7 +282,7 @@ def get_company_alerts(company_id):
     
     return jsonify({
         "company_id": company_id,
-        "company_name": Company.query.get(company_id).name,
+        "company_name": company.name,
         "alerts": alerts,
         "summary": {
             "critical_count": len(alerts["critical"]),
