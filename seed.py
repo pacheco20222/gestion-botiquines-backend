@@ -61,7 +61,7 @@ def init_db():
             user_type="company_admin",
             company=health_corp
         )
-        health_admin.set_password("healthpass456")
+        health_admin.set_password("healthpass45")
         db.session.add(health_admin)
 
         tech_admin = User(
@@ -585,7 +585,7 @@ def init_db():
         print("🔑 Login Credentials:")
         print("   Super Admin: admin / admin123")
         print("   Demo Company: demo_admin / password123")
-        print("   Health Corp: health_admin / healthpass456")
+        print("   Health Corp: health_admin / healthpass45")
         print("   TechCorp: tech_admin / techpass123")
         print("   Manufacturing: mfg_admin / mfgpass123")
         print("   Healthcare Plus: healthcare_admin / healthcarepass123")
