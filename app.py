@@ -51,7 +51,13 @@ def create_app():
 
     # 1) Database setup
     init_db(app)
-    app.secret_key = os.getenv("SECRET_KEY", "fallback-secret")
+    
+    # Enforce SECRET_KEY security (Issue 3)
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key or secret_key == "fallback-secret":
+        raise RuntimeError("CRITICAL: SECRET_KEY environment variable is missing or insecure. Refusing to start.")
+    
+    app.secret_key = secret_key
     
     # Production configuration
     if os.getenv('FLASK_ENV') == 'production':
