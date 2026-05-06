@@ -6,6 +6,7 @@ Handles CRUD operations and compartment visualization.
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from datetime import datetime
+import secrets
 from db import db
 from models.models import Botiquin, Company, Medicine
 from utils.auth import require_auth
@@ -92,6 +93,7 @@ def create_botiquin():
     
     botiquin = Botiquin(
         hardware_id=data.get("hardware_id"),
+        hardware_api_key=secrets.token_hex(32),
         name=data.get("name"),
         location=data.get("location"),
         company_id=company_id,
@@ -287,3 +289,21 @@ def get_botiquin_stats(botiquin_id):
     }
     
     return jsonify(stats), 200
+
+
+@bp.get("/<int:botiquin_id>/hardware_key")
+@require_auth
+def get_hardware_key(botiquin_id):
+    """Retrieve hardware API key for provisioning. Super admin only."""
+    if not current_user.is_super_admin():
+        return jsonify({"error": "Only super admin can retrieve hardware keys"}), 403
+    
+    botiquin = Botiquin.query.get(botiquin_id)
+    if not botiquin:
+        return jsonify({"error": "Botiquin not found"}), 404
+    
+    return jsonify({
+        "botiquin_id": botiquin.id,
+        "hardware_id": botiquin.hardware_id,
+        "hardware_api_key": botiquin.hardware_api_key
+    }), 200

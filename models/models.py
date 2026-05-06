@@ -107,6 +107,7 @@ class Botiquin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # Unique identifier for hardware communication
     hardware_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    hardware_api_key = db.Column(db.String(64), unique=True, nullable=True, index=True)
     name = db.Column(db.String(80), nullable=False) # e.g., "Botiquín 1", "Planta Baja",
     location = db.Column(db.String(120)) # Physical location description
     

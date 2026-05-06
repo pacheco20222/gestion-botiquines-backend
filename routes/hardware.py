@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from datetime import datetime
 import json
+import secrets
 from db import db
 from models.models import Botiquin, Medicine, HardwareLog
 from utils.auth import require_auth
@@ -15,16 +16,29 @@ bp = Blueprint("hardware", __name__)
 
 
 @bp.post("/sensor_data")
-@require_auth
 def receive_sensor_data():
     """
     Main endpoint to receive data from hardware sensors.
+    Validates hardware using X-Hardware-Key header.
     """
+    # 1. Validate Hardware API Key
+    hardware_key = request.headers.get("X-Hardware-Key")
+    if not hardware_key:
+        return jsonify({"error": "X-Hardware-Key header is missing"}), 401
+
     data = request.get_json()
+    if not data or "hardware_id" not in data:
+        return jsonify({"error": "hardware_id is required in JSON payload"}), 400
     
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
+    # Find botiquin by hardware_id
+    botiquin = Botiquin.query.filter_by(hardware_id=data["hardware_id"]).first()
+    if not botiquin:
+        return jsonify({"error": "Botiquin not found"}), 404
     
+    # Validate API Key
+    if botiquin.hardware_api_key != hardware_key:
+        return jsonify({"error": "Invalid hardware API key"}), 401
+
     # Log raw data for debugging
     log_entry = HardwareLog(
         raw_data=json.dumps(data),
@@ -216,6 +230,7 @@ def register_hardware():
     
     botiquin = Botiquin(
         hardware_id=data["hardware_id"],
+        hardware_api_key=secrets.token_hex(32),
         name=data["name"],
         location=data.get("location", ""),
         company_id=company_id,
