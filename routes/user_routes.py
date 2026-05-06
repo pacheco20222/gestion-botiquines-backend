@@ -73,13 +73,13 @@ def login():
                 return render_template("login.html", error=error_msg)
 
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 def logout():
     """Handle user logout"""
     if current_user.is_authenticated:
         logout_user()
-        flash("Sesión cerrada correctamente", "success")
-    return redirect(url_for("users.login"))
+        return jsonify({"message": "Sesión cerrada correctamente"}), 200
+    return jsonify({"message": "No session active"}), 200
 
 
 @bp.route("/api/users", methods=["GET"])
