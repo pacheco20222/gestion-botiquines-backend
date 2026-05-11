@@ -107,6 +107,7 @@ class Botiquin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # Unique identifier for hardware communication
     hardware_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    hardware_api_key = db.Column(db.String(64), unique=True, nullable=True, index=True)
     name = db.Column(db.String(80), nullable=False) # e.g., "Botiquín 1", "Planta Baja",
     location = db.Column(db.String(120)) # Physical location description
     
@@ -206,9 +207,8 @@ class Medicine(db.Model):
             self.medicine_name = medicine_name
             
         self.current_weight = weight_reading
-        # Note: quantity calculation requires unit_weight which is set by admin
-        # self.calculate_quantity_from_weight() - removed since hardware doesn't provide unit_weight
         self.last_scan_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
         return self.quantity
 
     @property

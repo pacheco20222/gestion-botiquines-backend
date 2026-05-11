@@ -4,9 +4,13 @@ Handles CRUD operations and compartment visualization.
 """
 
 from flask import Blueprint, request, jsonify
+from flask_login import current_user
 from datetime import datetime
+import secrets
+from sqlalchemy.orm import selectinload
 from db import db
 from models.models import Botiquin, Company, Medicine
+from utils.auth import require_auth
 
 bp = Blueprint("botiquines", __name__)
 
@@ -41,11 +45,16 @@ def validate_botiquin_payload(data, partial=False):
 # -------- Routes --------
 
 @bp.get("/")
+@require_auth
 def list_botiquines():
     """List all botiquines, optionally filtered by company"""
     company_id = request.args.get("company_id")
     
-    query = Botiquin.query
+    # Enforce company isolation
+    if not current_user.is_super_admin():
+        company_id = current_user.company_id
+    
+    query = Botiquin.query.options(selectinload(Botiquin.medicines))
     if company_id is not None:
         if company_id == "":
             # Filter for unassigned botiquines (company_id IS NULL)
@@ -54,11 +63,22 @@ def list_botiquines():
             # Filter for specific company
             query = query.filter_by(company_id=company_id)
     
-    botiquines = query.order_by(Botiquin.id.asc()).all()
-    return jsonify([b.to_dict() for b in botiquines]), 200
+    # Pagination
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    pagination = query.order_by(Botiquin.id.asc()).paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        "items": [b.to_dict() for b in pagination.items],
+        "total": pagination.total,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "pages": pagination.pages
+    }), 200
 
 
 @bp.post("/")
+@require_auth
 def create_botiquin():
     """Create a new botiquin"""
     data = request.get_json() or {}
@@ -77,9 +97,14 @@ def create_botiquin():
         company_id = int(company_id)
     else:
         company_id = None
+        
+    # Enforce company isolation on creation
+    if not current_user.is_super_admin():
+        company_id = current_user.company_id
     
     botiquin = Botiquin(
         hardware_id=data.get("hardware_id"),
+        hardware_api_key=secrets.token_hex(32),
         name=data.get("name"),
         location=data.get("location"),
         company_id=company_id,
@@ -94,6 +119,7 @@ def create_botiquin():
 
 
 @bp.get("/<int:botiquin_id>")
+@require_auth
 def get_botiquin(botiquin_id):
     """Get a specific botiquin with its compartment status"""
     botiquin = Botiquin.query.get(botiquin_id)
@@ -104,6 +130,7 @@ def get_botiquin(botiquin_id):
 
 
 @bp.get("/<int:botiquin_id>/compartments")
+@require_auth
 def get_compartments(botiquin_id):
     """
     Get detailed compartment visualization data.
@@ -162,6 +189,7 @@ def get_compartments(botiquin_id):
 
 
 @bp.put("/<int:botiquin_id>")
+@require_auth
 def update_botiquin(botiquin_id):
     """Update botiquin information"""
     botiquin = Botiquin.query.get(botiquin_id)
@@ -186,7 +214,11 @@ def update_botiquin(botiquin_id):
     for field in fields:
         if field in data:
             if field in ["company_id", "total_compartments"]:
-                setattr(botiquin, field, int(data[field]))
+                val = int(data[field])
+                # Isolation: non-super-admin cannot change company_id
+                if field == "company_id" and not current_user.is_super_admin() and val != current_user.company_id:
+                    continue 
+                setattr(botiquin, field, val)
             else:
                 setattr(botiquin, field, data[field])
     
@@ -195,6 +227,7 @@ def update_botiquin(botiquin_id):
 
 
 @bp.delete("/<int:botiquin_id>")
+@require_auth
 def delete_botiquin(botiquin_id):
     """
     Delete a botiquin.
@@ -217,6 +250,7 @@ def delete_botiquin(botiquin_id):
 
 
 @bp.post("/<int:botiquin_id>/sync")
+@require_auth
 def sync_botiquin(botiquin_id):
     """
     Mark botiquin as synced with hardware.
@@ -236,6 +270,7 @@ def sync_botiquin(botiquin_id):
 
 
 @bp.get("/<int:botiquin_id>/stats")
+@require_auth
 def get_botiquin_stats(botiquin_id):
     """Get statistics for a specific botiquin"""
     botiquin = Botiquin.query.get(botiquin_id)
@@ -265,3 +300,21 @@ def get_botiquin_stats(botiquin_id):
     }
     
     return jsonify(stats), 200
+
+
+@bp.get("/<int:botiquin_id>/hardware_key")
+@require_auth
+def get_hardware_key(botiquin_id):
+    """Retrieve hardware API key for provisioning. Super admin only."""
+    if not current_user.is_super_admin():
+        return jsonify({"error": "Only super admin can retrieve hardware keys"}), 403
+    
+    botiquin = Botiquin.query.get(botiquin_id)
+    if not botiquin:
+        return jsonify({"error": "Botiquin not found"}), 404
+    
+    return jsonify({
+        "botiquin_id": botiquin.id,
+        "hardware_id": botiquin.hardware_id,
+        "hardware_api_key": botiquin.hardware_api_key
+    }), 200

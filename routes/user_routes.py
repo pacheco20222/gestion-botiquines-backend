@@ -9,11 +9,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
 from db import db
 from models.models import User, Company
+from app import limiter
 
 bp = Blueprint("users", __name__)
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login():
     """Handle user login - FIXED to handle both form and JSON data"""
     if request.method == "GET":
@@ -73,13 +75,13 @@ def login():
                 return render_template("login.html", error=error_msg)
 
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 def logout():
     """Handle user logout"""
     if current_user.is_authenticated:
         logout_user()
-        flash("Sesión cerrada correctamente", "success")
-    return redirect(url_for("users.login"))
+        return jsonify({"message": "Sesión cerrada correctamente"}), 200
+    return jsonify({"message": "No session active"}), 200
 
 
 @bp.route("/api/users", methods=["GET"])
@@ -303,15 +305,9 @@ def change_password():
 def check_auth():
     """Check if user is authenticated and return session info"""
     if not current_user.is_authenticated or not getattr(current_user, "active", False):
-        return jsonify({"authenticated": False}), 200
+        return jsonify({"authenticated": False, "error": "Not authenticated"}), 401
 
-    user = current_user
     return jsonify({
         "authenticated": True,
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "user_type": user.user_type,
-            "company": user.company.name if user.company else None
-        }
+        "user": current_user.to_dict()
     }), 200
