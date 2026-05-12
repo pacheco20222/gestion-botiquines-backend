@@ -18,7 +18,7 @@ import os
 from functools import wraps
 
 from db import init_db
-from extensions import db, login_manager, limiter
+from extensions import db, login_manager, limiter, migrate
 
 from routes.medicines import bp as medicines_bp
 from routes.user_routes import bp as users_bp
@@ -80,6 +80,7 @@ def create_app():
 
     login_manager.init_app(app)
     limiter.init_app(app)
+    migrate.init_app(app, db)
 
     from models.models import User
 
