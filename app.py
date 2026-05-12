@@ -93,6 +93,11 @@ def create_app():
         except (TypeError, ValueError):
             return None
 
+    # Session cookie configuration for cross-origin auth
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True  
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+
     # 3) Register blueprints
     app.register_blueprint(landing_bp)  # Landing page (no prefix for root route)
     app.register_blueprint(medicines_bp, url_prefix="/api/medicines")
