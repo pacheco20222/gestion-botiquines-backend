@@ -7,13 +7,10 @@ Database bootstrap for the MVP.
 
 import os
 from dotenv import load_dotenv
-from flask_sqlalchemy import SQLAlchemy
+from extensions import db
 
 # Load variables from a local .env when running outside Docker
 load_dotenv()
-
-# Single shared SQLAlchemy instance for the whole app
-db = SQLAlchemy()
 
 
 def get_database_uri() -> str:

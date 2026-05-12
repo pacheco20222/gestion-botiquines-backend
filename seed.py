@@ -1,7 +1,8 @@
 # seed.py
 from datetime import date, datetime, timedelta
 
-from app import app, db
+from app import app
+from extensions import db
 from models import User, Company, Botiquin, Medicine
 
 def init_db():

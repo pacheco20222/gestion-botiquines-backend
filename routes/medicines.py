@@ -6,7 +6,7 @@ Updated to support botiquines and weight-based calculations.
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from datetime import datetime, date
-from db import db
+from extensions import db
 from models.models import Medicine, Botiquin
 from utils.auth import require_auth
 
