@@ -8,7 +8,7 @@ from flask_login import current_user
 from datetime import datetime
 import secrets
 from sqlalchemy.orm import selectinload
-from db import db
+from extensions import db
 from models.models import Botiquin, Company, Medicine
 from utils.auth import require_auth
 

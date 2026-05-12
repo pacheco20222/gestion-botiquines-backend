@@ -7,9 +7,8 @@ from flask import Blueprint, request, jsonify, redirect, url_for, render_templat
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
-from db import db
+from extensions import db, limiter
 from models.models import User, Company
-from app import limiter
 
 bp = Blueprint("users", __name__)
 

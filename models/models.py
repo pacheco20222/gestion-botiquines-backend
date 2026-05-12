@@ -9,7 +9,7 @@ Updated structure includes:
 """
 
 from datetime import datetime, date
-from db import db
+from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 

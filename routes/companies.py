@@ -6,7 +6,7 @@ Essential for SaaS model - manages multiple companies with their botiquines.
 from flask import Blueprint, request, jsonify
 from flask_login import current_user
 from datetime import datetime
-from db import db
+from extensions import db
 from models.models import Company, User, Botiquin, Medicine
 from utils.auth import require_auth
 

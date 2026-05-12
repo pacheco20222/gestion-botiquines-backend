@@ -8,7 +8,7 @@ from flask_login import current_user
 from datetime import datetime
 import json
 import secrets
-from db import db
+from extensions import db
 from models.models import Botiquin, Medicine, HardwareLog
 from utils.auth import require_auth
 

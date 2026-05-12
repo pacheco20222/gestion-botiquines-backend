@@ -5,7 +5,7 @@ Only accessible by super admins.
 
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from db import db
+from extensions import db
 from models.models import User, Company, Botiquin, Medicine, HardwareLog
 from werkzeug.security import generate_password_hash
 import os

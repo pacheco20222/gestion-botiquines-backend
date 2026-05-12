@@ -17,8 +17,8 @@ import os
 # Add CORS support
 from functools import wraps
 
-from db import init_db   # our init_db function
-from db import db        # the shared SQLAlchemy instance
+from db import init_db
+from extensions import db, login_manager, limiter
 
 from routes.medicines import bp as medicines_bp
 from routes.user_routes import bp as users_bp
@@ -30,15 +30,15 @@ from routes.landing import bp as landing_bp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-login_manager = LoginManager()
+# Configure extensions
 login_manager.login_view = "users.login"
 login_manager.login_message_category = "warning"
 
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-)
+# Limiter configuration - we set these on the instance before init_app
+# or pass them to init_app if possible, but the original code had them in constructor.
+# Since Limiter was instantiated in extensions.py without these, we can't easily 
+# re-pass them unless we use init_app parameters or set attributes.
+# Actually, Limiter attributes like default_limits can be set or passed to init_app.
 
 
 def create_app():
@@ -74,6 +74,10 @@ def create_app():
         app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
     # 2) Authentication setup
+    app.config.setdefault("RATELIMIT_DEFAULT", "200 per day; 50 per hour")
+    app.config.setdefault("RATELIMIT_STORAGE_URI", "memory://")
+    app.config.setdefault("RATELIMIT_STRATEGY", "fixed-window")
+
     login_manager.init_app(app)
     limiter.init_app(app)
 
